@@ -403,12 +403,18 @@
       "upstream": {
         "repository": "wine-mirror/wine",
         "commit": "de43f5434fec4fa44a1d1aad0445bae4a606a5a9",
-        "paths": ["dlls/concrt140/details.c"]
+        "paths": [
+          "dlls/concrt140/details.c"
+        ]
       }
     },
     {
       "file": "assets/concrt-queue-iterator.patch",
       "sha256": "e23749fd834f9870af947a12a4158dd752a68aedeffb86c8aa220c87cd252621"
+    },
+    {
+      "file": "assets/concrt-underlying-yield.patch",
+      "sha256": "cb84c08a7d6d6b6bb0cba6fb7e6a9b6d90f18a09436f7e42fe4f8e202034cd9b"
     }
   ],
   "expectedProtonSources": {
@@ -418,7 +424,8 @@
     "dlls/concrt140/details.c": "257b2e8971156e8f9e06137a69e7590bbd5816ac9512cd034d255c07b55cd480",
     "dlls/twinapi.appcore/main.c": "867b24b1a57331b9d28ba1355033e7b3a6f899bcccd6af024ea43c21b24c722e",
     "dlls/twinapi.appcore/appstate-registration.h": "f011a711a77fd91a7d30d63f91adebcc31a2c161130af1160cd2b960f812f016",
-    "dlls/concrt140/concrt140.spec": "17e7863be79c1fdfb8766da7569c9071a3ed527a1e787ef1f5edb75013e75369"
+    "dlls/concrt140/concrt140.spec": "34fa6cfff6c1163f1581664bde333798cbf93ac05d01c706d27c4c992a6f91d8",
+    "dlls/msvcrt/concurrency.c": "0f37efe888cfcabfcf8a4cb593cc794be7195f90ca24ce71924aae3e9b5f1fcd"
   },
   "expectedVkd3dSources": {
     "libs/vkd3d-shader/hlsl.l": "4bcde7ac8e4e43ea848483ca78dce9be0c2bf431398a912f53d339c6581791d5"
