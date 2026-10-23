@@ -2,6 +2,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import {project,readJson,run,checkout,verifyRecipe,sha256} from './recipe.mjs';
+import {verifyShaderVersion} from './shader-version.mjs';
 
 const args=process.argv.slice(2),full=args.includes('--full');
 const filtered=args.filter(x=>x!=='--full');
@@ -31,6 +32,7 @@ for(const p of patches.patches){
 for(const [file,expected] of Object.entries(patches.expectedXgameruntimeSources))if(sha256(await fs.readFile(path.join(source,'wine',file)))!==expected)throw Error('XGameRuntime source differs: '+file);
 for(const [file,expected] of Object.entries(patches.expectedWineSources??{}))if(sha256(await fs.readFile(path.join(source,'wine',file)))!==expected)throw Error('Wine source differs: '+file);
 for(const [file,expected] of Object.entries(patches.expectedVkd3dSources??{}))if(sha256(await fs.readFile(path.join(source,'vkd3d',file)))!==expected)throw Error('Shader source differs: '+file);
+verifyShaderVersion(await fs.readFile(path.join(source,'vkd3d/configure.ac'),'utf8'),patches.sources.vkd3d.version);
 const recipe=await fs.readFile(path.join(project,'scripts/runtime-patches.lock.json'));
 const manifest={schema:1,channel:'experimental',proton,sourceLockSha256:sha256(recipe),patches:patches.patches,fullSubmodules:full};
 if(full)manifest.submodules=run('git',['submodule','status','--recursive'],source,{capture:true});
