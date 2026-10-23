@@ -1,0 +1,99 @@
+name: Experimental runtime candidate
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: experimental-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  auxiliary:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install bounded build prerequisites
+        timeout-minutes: 15
+        run: |
+          sudo "$(command -v node)" scripts/ci/ubuntu-mirror.mjs
+          sudo apt-get -o Acquire::Retries=2 -o Acquire::https::Timeout=30 update
+          sudo apt-get -o Acquire::Retries=2 -o Acquire::https::Timeout=30 install -y --no-install-recommends build-essential cmake gcc-mingw-w64-x86-64 gcc-mingw-w64-i686 curl xz-utils
+      - run: node scripts/build-auxiliary.mjs --work "$PWD/work/auxiliary"
+      - name: Bundle exact auxiliary inputs and outputs
+        run: tar --exclude=.git -cJf auxiliary.tar.xz -C work auxiliary
+      - uses: actions/upload-artifact@v4
+        with:
+          name: auxiliary
+          path: auxiliary.tar.xz
+          if-no-files-found: error
+          retention-days: 7
+  build:
+    if: github.ref == 'refs/heads/main'
+    needs: auxiliary
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Free unused hosted-runner SDK space
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/share/boost
+          df -h "$PWD"
+      - name: Install bounded build and synthetic-test prerequisites
+        timeout-minutes: 15
+        run: |
+          sudo "$(command -v node)" scripts/ci/ubuntu-mirror.mjs
+          sudo apt-get -o Acquire::Retries=2 -o Acquire::https::Timeout=30 update
+          sudo apt-get -o Acquire::Retries=2 -o Acquire::https::Timeout=30 install -y --no-install-recommends build-essential cmake gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64 fontforge-nox ccache rsync file curl xz-utils flex bison autoconf automake libtool libjson-perl wine64-tools pkg-config python3 openssl xvfb xauth libfreetype-dev libgnutls28-dev libvulkan1 mesa-vulkan-drivers libx11-6 libgstreamer1.0-dev libgstreamer-plugins-base1.0-0
+          echo /usr/lib/wine >> "$GITHUB_PATH"
+      - uses: actions/download-artifact@v4
+        with:
+          name: auxiliary
+      - run: mkdir work && tar -xJf auxiliary.tar.xz -C work
+      - run: npm test && npm run check
+      - name: Prepare exact complete upstream source tree
+        run: node scripts/prepare-runtime.mjs --work "$PWD/work/source" --full
+      - uses: actions/cache@v4
+        with:
+          path: ~/.ccache
+          key: proton-sdk-${{ hashFiles('scripts/proton.lock.json') }}-${{ github.sha }}
+          restore-keys: proton-sdk-${{ hashFiles('scripts/proton.lock.json') }}-
+      - name: Build coherent Proton in pinned SDK
+        run: node scripts/build-proton.mjs "$PWD/work/source" "$PWD/work/auxiliary" "$PWD/dist"
+      - name: Compile synthetic test fixtures only
+        run: node scripts/build-probes.mjs "$PWD/work/source" "$PWD/work/auxiliary"
+      - name: Native contract, HTTP/TLS, media and graphics validation
+        run: xvfb-run -a node scripts/validate-candidate.mjs "$PWD/dist"
+      - name: Package validated binaries and complete corresponding source
+        env:
+          XZ_OPT: '-T2'
+        run: node scripts/package-candidate.mjs "$PWD/dist"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nexus-runtime
+          path: |
+            dist/*.tar.xz
+            dist/*.sha512sum
+            dist/candidate.json
+          if-no-files-found: error
+          retention-days: 14
+      - name: Retain synthetic validation results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: synthetic-results
+          path: |
+            work/source/runtime-contract-*/results.json
+            work/source/runtime-http2-*/results.json
+            work/source/runtime-dxvk-*/result.json
+            work/source/media-tests/results.json
+          retention-days: 14
+
