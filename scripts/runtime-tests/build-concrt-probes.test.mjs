@@ -17,4 +17,6 @@ test('queue probe uses real exports for lifecycle and page-boundary traversal',(
   const source=fs.readFileSync(new URL('./concrt-queue-probe.c',import.meta.url),'utf8');
   for(const text of ['GetProcAddress','iter_ctor','iter_dtor','iter_assign','iter_advance','empty_lifecycle();','refill();','queue_size(&f.q) == count','popped + i','iterator has exactly two pointer-sized ABI fields','all callback pages released'])assert.ok(source.includes(text),text);
   assert.doesNotMatch(source,/#include\s+".*details\.c"|XUser|XGameSave|https?:\/\//);
+  assert.match(source,/BOOLEAN \(__thiscall \*queue_pop\)/);
+  assert.match(source,/BOOLEAN \(__thiscall \*queue_empty\)/);
 });
