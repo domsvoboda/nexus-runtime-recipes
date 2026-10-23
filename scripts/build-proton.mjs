@@ -2,6 +2,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import {project,run,readJson,verifyRecipe,sha256} from './recipe.mjs';
+import {sdkBuildPlan} from './sdk-build-plan.mjs';
 const [preparedArg,auxArg,outputArg]=process.argv.slice(2);
 if(!preparedArg||!auxArg||!outputArg||process.argv.length!==5)throw Error('Usage: build-proton.mjs PREPARED AUXILIARY NEW_OUTPUT');
 const prepared=await fs.realpath(preparedArg),aux=await fs.realpath(auxArg),output=path.resolve(outputArg);
@@ -22,12 +23,12 @@ const revision=run('git',['rev-parse','--short=8','HEAD'],project,{capture:true}
 const epoch=run('git',['log','-1','--format=%ct'],project,{capture:true}).trim();
 const name=`nexus-runtime-11.0-experimental-g${revision}`;
 run(path.join(source,'configure.sh'),[`--build-name=${name}`,'--container-engine=docker',`--proton-sdk-image=${proton.sdk}`,'--enable-ccache'],build);
-// The official module target uses the same SDK, generated headers, fatal
-// warnings and build directory as redist. Fail on our module before building
-// every unrelated Wine component, then reuse its compiled objects below.
-console.log('Checking xgameruntime in both SDK architectures before the full build.');
-run('make',['-j4','J=4',`SOURCE_DATE_EPOCH=${epoch}`,'module=xgameruntime','module'],build,{timeout:60*60*1000});
-run('make',['-j4','J=4',`SOURCE_DATE_EPOCH=${epoch}`,'redist'],build,{timeout:5*60*60*1000});
+// Each make completes before the next starts. All stages use the same official
+// SDK, build directory and compiler flags, then reuse their compiled objects.
+for(const stage of sdkBuildPlan(build,epoch)){
+  console.log(stage.name);
+  run('make',stage.args,build,{timeout:stage.timeout});
+}
 await fs.mkdir(output,{recursive:false});
 const runtime=path.join(output,name);
 await fs.cp(path.join(build,'redist'),runtime,{recursive:true,errorOnExist:true,force:false,dereference:false});

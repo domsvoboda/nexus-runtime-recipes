@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: MIT
+import path from 'node:path';
+
+export function sdkBuildPlan(build, epoch) {
+  if (!path.isAbsolute(build) || !/^[0-9]+$/.test(epoch)) throw Error('Invalid SDK build inputs');
+  const common = ['-j4', 'J=4', `SOURCE_DATE_EPOCH=${epoch}`];
+  return [
+    // Proton module64 does not depend on its host-tools stamp. A clean parallel
+    // module build can otherwise launch a second WIDL make in the same tree.
+    {name: 'Build shared Wine host tools before module submakes', args: [...common, path.join(build, '.wine-x86_64-tools')], timeout: 60*60*1000},
+    {name: 'Check xgameruntime in both SDK architectures', args: [...common, 'module=xgameruntime', 'module'], timeout: 60*60*1000},
+    {name: 'Build complete coherent Proton redistribution', args: [...common, 'redist'], timeout: 5*60*60*1000},
+  ];
+}
