@@ -8,6 +8,7 @@ const filtered=args.filter(x=>x!=='--full');
 if(filtered.length!==2||filtered[0]!=='--work')throw Error('Usage: prepare-runtime.mjs --work NEW_DIRECTORY [--full]');
 const work=path.resolve(filtered[1]);
 const {proton,patches}=await verifyRecipe();
+await fs.mkdir(path.dirname(work),{recursive:true});
 await fs.mkdir(work,{recursive:false});
 const source=path.join(work,'proton');
 await checkout(proton.proton,source);

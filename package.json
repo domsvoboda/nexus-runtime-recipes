@@ -6,6 +6,7 @@
   "license": "MIT",
   "scripts": {
     "test": "node --test scripts/*.test.mjs scripts/runtime-tests/build-*.test.mjs",
+    "test:compat": "node --test scripts/runtime-compat/staging.test.mjs",
     "check": "node scripts/check-recipe.mjs",
     "prepare:source": "node scripts/prepare-runtime.mjs"
   }
