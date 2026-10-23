@@ -65,7 +65,7 @@ try {
       if (finish.code || finish.timedOut) throw new Error(`File-provider shutdown failed; see ${root}`);
     }
   }
-  for (const kind of ['concrt-vector','concrt-queue','concrt-yield']) for (const bits of [64,32]) {
+  for (const kind of ['concrt-vector','concrt-queue','concrt-yield','auth-metadata']) for (const bits of [64,32]) {
     const name=`${kind}-${bits}`;
     const result=await run(wine,[path.join(tests,`${name}-probe.exe`)]);
     await fs.writeFile(path.join(root,`${name}.log`),result.output,{mode:0o600});

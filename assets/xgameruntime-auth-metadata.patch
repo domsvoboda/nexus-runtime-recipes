@@ -1,0 +1,162 @@
+Opt-in bounded authentication stage diagnostics with numeric status only.
+
+diff --git a/dlls/xgameruntime/xuser.c b/dlls/xgameruntime/xuser.c
+index 7306406..6cdf0b0 100644
+--- a/dlls/xgameruntime/xuser.c
++++ b/dlls/xgameruntime/xuser.c
+@@ -130,9 +130,25 @@ static void auth_metadata( const char *phase, XUserHandle user, HRESULT hr,
+     char path[MAX_PATH], line[256];
+     LARGE_INTEGER size, end;
+     HANDLE file;
++    unsigned int i;
++    static const char *const phases[] = {
++        "sisu", "resolve-privilege", "get-token-complete", "get-token-begin", "xsts", "xsts-begin",
++        "privilege-identity-claim", "privilege-permissions-claim",
++        "store-license", "store-license-begin", "store-license-size", "store-license-result",
++        "store-entitled-result", "store-addon-license-result", "store-entitled-receipt",
++        "store-entitled-inventory", "store-entitled-metadata",
++        "init-default-begin", "init-default-end", "init-default-parse",
++        "init-tickets-begin", "init-tickets-end", "init-device-begin", "init-device-end",
++        "init-sisu-begin", "init-sisu-end", "init-current-begin", "init-current-end", "init-current-parse",
++        "init-worker-begin", "init-attempt-begin", "init-attempt-end", "init-retry", "init-complete",
++        "user-add-begin", "user-local-init", "user-add-complete"
++    };
+ 
+     length = GetEnvironmentVariableA( "XUSER_AUTH_METADATA_LOG", path, sizeof(path) );
+     if (!length || length >= sizeof(path)) goto done;
++    if (!phase) goto done;
++    for (i = 0; i < ARRAY_SIZE(phases); ++i) if (!strcmp( phase, phases[i] )) break;
++    if (i == ARRAY_SIZE(phases)) goto done;
+     length = snprintf( line, sizeof(line),
+         "AUTH_META phase=%s hr=%08lx http=%lu device=%u user=%u title=%u requested_title=%u actual_title=%u tick=%lu thread=%lu\n",
+         phase, (unsigned long)(UINT32)hr, (unsigned long)status,
+@@ -140,11 +156,11 @@ static void auth_metadata( const char *phase, XUserHandle user, HRESULT hr,
+         !!requested_title, !!actual_title, (unsigned long)GetTickCount(), (unsigned long)GetCurrentThreadId() );
+     if (length >= sizeof(line)) goto done;
+     AcquireSRWLockExclusive( &lock );
+-    file = CreateFileA( path, GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE,
++    file = CreateFileA( path, GENERIC_WRITE, FILE_SHARE_READ,
+                         NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL );
+     if (file != INVALID_HANDLE_VALUE)
+     {
+-        if (GetFileSizeEx( file, &size ) && size.QuadPart + length <= 32768)
++        if (GetFileType( file ) == FILE_TYPE_DISK && GetFileSizeEx( file, &size ) && size.QuadPart + length <= 32768)
+         {
+             end.QuadPart = 0;
+             if (SetFilePointerEx( file, end, NULL, FILE_END )) WriteFile( file, line, length, &written, NULL );
+@@ -805,19 +821,38 @@ static HRESULT user_initialize_network( XUserHandle user, XUserAddOptions option
+     SIZE_T size;
+     HRESULT hr;
+ 
+-    if (FAILED(hr = http_request( L"GET", L"https://title.mgt.xboxlive.com/titles/default/endpoints?type=1", NULL, NULL, ACCEPT_JSON, &defaultBuffer, &size ))) return hr;
+-    if (FAILED(hr = load_endpoints( impl, defaultBuffer, size ))) goto cleanup;
+-    if (FAILED(hr = get_rps_tickets( options & XUserAddOptions_AddDefaultUserAllowingUI, &userTicket, &deviceTicket ))) goto cleanup;
+-    if (FAILED(hr = device_auth( impl, deviceTicket, &deviceToken ))) goto cleanup;
++    auth_metadata( "init-default-begin", user, E_PENDING, 0, FALSE, FALSE );
++    hr = http_request( L"GET", L"https://title.mgt.xboxlive.com/titles/default/endpoints?type=1", NULL, NULL, ACCEPT_JSON, &defaultBuffer, &size );
++    auth_metadata( "init-default-end", user, hr, 0, FALSE, FALSE );
++    if (FAILED(hr)) return hr;
++    hr = load_endpoints( impl, defaultBuffer, size );
++    auth_metadata( "init-default-parse", user, hr, 0, FALSE, FALSE );
++    if (FAILED(hr)) goto cleanup;
++    auth_metadata( "init-tickets-begin", user, E_PENDING, 0, FALSE, FALSE );
++    hr = get_rps_tickets( options & XUserAddOptions_AddDefaultUserAllowingUI, &userTicket, &deviceTicket );
++    auth_metadata( "init-tickets-end", user, hr, 0, FALSE, FALSE );
++    if (FAILED(hr)) goto cleanup;
++    auth_metadata( "init-device-begin", user, E_PENDING, 0, FALSE, FALSE );
++    hr = device_auth( impl, deviceTicket, &deviceToken );
++    auth_metadata( "init-device-end", user, hr, 0, FALSE, FALSE );
++    if (FAILED(hr)) goto cleanup;
+     free( impl->deviceToken );
+     if (!(impl->deviceToken = strdup( deviceToken )))
+     {
+         hr = E_OUTOFMEMORY;
+         goto cleanup;
+     }
+-    if (FAILED(hr = sisu_auth( impl, userTicket, deviceToken, &auth ))) goto cleanup;
+-    if (FAILED(hr = http_request( L"GET", L"https://title.mgt.xboxlive.com/titles/current/endpoints", NULL, auth, ACCEPT_JSON, &currentBuffer, &size ))) goto cleanup;
+-    if (FAILED(hr = load_endpoints( impl, currentBuffer, size ))) goto cleanup;
++    auth_metadata( "init-sisu-begin", user, E_PENDING, 0, TRUE, FALSE );
++    hr = sisu_auth( impl, userTicket, deviceToken, &auth );
++    auth_metadata( "init-sisu-end", user, hr, 0, TRUE, !!user->titleToken );
++    if (FAILED(hr)) goto cleanup;
++    auth_metadata( "init-current-begin", user, E_PENDING, 0, FALSE, FALSE );
++    hr = http_request( L"GET", L"https://title.mgt.xboxlive.com/titles/current/endpoints", NULL, auth, ACCEPT_JSON, &currentBuffer, &size );
++    auth_metadata( "init-current-end", user, hr, 0, FALSE, FALSE );
++    if (FAILED(hr)) goto cleanup;
++    hr = load_endpoints( impl, currentBuffer, size );
++    auth_metadata( "init-current-parse", user, hr, 0, FALSE, FALSE );
++    if (FAILED(hr)) goto cleanup;
+ 
+ cleanup:
+     if (currentBuffer) free( currentBuffer );
+@@ -850,13 +885,20 @@ static DWORD WINAPI user_network_init_thread( void *arg )
+     int attempt;
+ 
+     free( init );
++    auth_metadata( "init-worker-begin", user, E_PENDING, 0, FALSE, FALSE );
+     for (attempt = 0; attempt < 5; attempt++)
+     {
++        auth_metadata( "init-attempt-begin", user, E_PENDING, 0, FALSE, FALSE );
+         hr = user_initialize_network( user, options );
++        auth_metadata( "init-attempt-end", user, hr, 0, FALSE, FALSE );
+         if (SUCCEEDED(hr)) break;
+         /* Transient bridge/service start races must not permanently break
+          * sign-in; retry with a delay before publishing the failure. */
+-        if (attempt < 4) Sleep( 3000 );
++        if (attempt < 4)
++        {
++            auth_metadata( "init-retry", user, hr, 0, FALSE, FALSE );
++            Sleep( 3000 );
++        }
+     }
+     if (SUCCEEDED(com)) CoUninitialize();
+     EnterCriticalSection( &user->deviceAuthSection );
+@@ -868,6 +910,7 @@ static DWORD WINAPI user_network_init_thread( void *arg )
+      * SignedInAgain: that event is reserved for an existing signed-out handle
+      * whose same user subsequently signs in again. */
+     if (SUCCEEDED(hr)) set_signed_in_user( user );
++    auth_metadata( "init-complete", user, hr, 0, FALSE, FALSE );
+     IUser_Release( &user->IUser_iface );
+     IXThreadingImpl_XAsyncComplete( threading, async, hr, SUCCEEDED(hr) ? sizeof(XUserHandle) : 0 );
+     IXThreadingImpl_Release( threading );
+@@ -1218,6 +1261,7 @@ static HRESULT WINAPI XUserAddProvider( XAsyncOp op, const XAsyncProviderData *d
+             break;
+ 
+         case XAsyncOp_DoWork:
++            auth_metadata( "user-add-begin", NULL, E_PENDING, 0, FALSE, FALSE );
+             if (!(context->user = calloc( 1, sizeof(*context->user) )))
+             {
+                 hr = E_OUTOFMEMORY;
+@@ -1229,6 +1273,7 @@ static HRESULT WINAPI XUserAddProvider( XAsyncOp op, const XAsyncProviderData *d
+             {
+                 HRESULT init = CoInitializeEx( NULL, COINIT_MULTITHREADED );
+                 hr = IUser_Initialize( &context->user->IUser_iface, context->options );
++                auth_metadata( "user-local-init", context->user, hr, 0, FALSE, FALSE );
+                 if (SUCCEEDED(init)) CoUninitialize();
+             }
+             if (SUCCEEDED(hr))
+@@ -1264,6 +1309,7 @@ static HRESULT WINAPI XUserAddProvider( XAsyncOp op, const XAsyncProviderData *d
+             }
+ 
+         complete:
++            auth_metadata( "user-add-complete", context->user, hr, 0, FALSE, FALSE );
+             IXThreadingImpl_XAsyncComplete( xthreading, data->async, hr, SUCCEEDED(hr) ? sizeof(XUserHandle) : 0 );
+             hr = S_OK;
+             break;
+@@ -1772,6 +1818,7 @@ static HRESULT WINAPI token_signature_phase( XAsyncOp op, const XAsyncProviderDa
+         case XAsyncOp_DoWork:
+         {
+             WCHAR *partyBuf = NULL;
++            auth_metadata( "get-token-begin", context->user, E_PENDING, 0, TRUE, !!context->user->titleToken );
+             /* Fallback relying party for URLs missing from the endpoint table;
+              * heap-owned only for the web-origin case, freed at complete. */
+             if (FAILED(hr = IUser_GetEndpointInfo( &context->user->IUser_iface, context->url, &info )))
+@@ -2671,6 +2718,7 @@ static HRESULT xsts_authorize_privilege( XUserHandle user, const char *relyingPa
+     DWORD status = 0;
+     BOOL requested_title = title;
+ 
++    auth_metadata( "xsts-begin", user, E_PENDING, 0, requested_title, FALSE );
+     if (granted) *granted = FALSE;
+ 
+     TRACE( "user %p, relyingParty %s, title %d.\n", user, debugstr_a( relyingParty ), title );
