@@ -2,6 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import {sdkBuildPlan} from './sdk-build-plan.mjs';
 const load=file=>fs.readFileSync(new URL('../'+file,import.meta.url),'utf8');
 test('PR source checks do not compile or package distribution binaries',()=>{
   const source=load('.github/workflows/source.yml');
@@ -29,8 +30,12 @@ test('coherent SDK output is copied, never host-built Wine probe DLLs',()=>{
 });
 test('the official SDK module preflight precedes redist without relaxing compiler flags',()=>{
   const script=load('scripts/build-proton.mjs');
-  const preflight=script.indexOf("'module=xgameruntime','module'");
-  assert.ok(preflight>0&&preflight<script.indexOf("'redist'],build"));
+  const stages=sdkBuildPlan('/build','1');
+  assert.equal(stages[0].args.at(-1),'/build/.wine-x86_64-tools');
+  assert.deepEqual(stages[1].args.slice(-2),['module=xgameruntime','module']);
+  assert.equal(stages[2].args.at(-1),'redist');
+  assert.match(script,/for\(const stage of sdkBuildPlan\(build,epoch\)\)/);
+  assert.match(script,/run\('make',stage.args,build,\{timeout:stage.timeout\}\)/);
   assert.doesNotMatch(script,/-Wno-|--disable-werror|CFLAGS=/);
   assert.match(script,/proton-sdk-image=\$\{proton.sdk\}/);
 });
