@@ -27,3 +27,23 @@ test('coherent SDK output is copied, never host-built Wine probe DLLs',()=>{
   assert.match(script,/path\.join\(build,'redist'\)/);assert.doesNotMatch(script,/probe-build/);
   const probe=load('scripts/build-probes.mjs');assert.match(probe,/Host-built executables are test fixtures only/);
 });
+test('the official SDK module preflight precedes redist without relaxing compiler flags',()=>{
+  const script=load('scripts/build-proton.mjs');
+  const preflight=script.indexOf("'module=xgameruntime','module'");
+  assert.ok(preflight>0&&preflight<script.indexOf("'redist'],build"));
+  assert.doesNotMatch(script,/-Wno-|--disable-werror|CFLAGS=/);
+  assert.match(script,/proton-sdk-image=\$\{proton.sdk\}/);
+});
+test('main SDK compiler cache survives failure but never bypasses validation',()=>{
+  const build=load('.github/workflows/build.yml');
+  assert.match(build,/actions\/cache\/restore@v4/);
+  assert.match(build,/actions\/cache\/save@v4/);
+  assert.match(build,/if: always\(\) && !cancelled\(\) && steps\.ccache-restore\.outcome == 'success'/);
+  assert.match(build,/CCACHE_MAXSIZE: 3G/);
+  assert.match(build,/CCACHE_COMPILERCHECK: content/);
+  assert.doesNotMatch(build,/CCACHE_SLOPPINESS|continue-on-error|if:.*cache-hit.*validate/);
+  assert.match(build,/restore-keys: proton-sdk-\$\{\{ hashFiles\('scripts\/proton.lock.json'\) \}\}-/);
+  const native=build.indexOf('node scripts/validate-candidate.mjs');
+  assert.ok(native>build.indexOf('node scripts/build-proton.mjs'));
+  assert.ok(build.indexOf('node scripts/package-candidate.mjs')>native);
+});

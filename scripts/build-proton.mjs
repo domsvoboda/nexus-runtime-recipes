@@ -22,6 +22,11 @@ const revision=run('git',['rev-parse','--short=8','HEAD'],project,{capture:true}
 const epoch=run('git',['log','-1','--format=%ct'],project,{capture:true}).trim();
 const name=`nexus-runtime-11.0-experimental-g${revision}`;
 run(path.join(source,'configure.sh'),[`--build-name=${name}`,'--container-engine=docker',`--proton-sdk-image=${proton.sdk}`,'--enable-ccache'],build);
+// The official module target uses the same SDK, generated headers, fatal
+// warnings and build directory as redist. Fail on our module before building
+// every unrelated Wine component, then reuse its compiled objects below.
+console.log('Checking xgameruntime in both SDK architectures before the full build.');
+run('make',['-j4','J=4',`SOURCE_DATE_EPOCH=${epoch}`,'module=xgameruntime','module'],build,{timeout:60*60*1000});
 run('make',['-j4','J=4',`SOURCE_DATE_EPOCH=${epoch}`,'redist'],build,{timeout:5*60*60*1000});
 await fs.mkdir(output,{recursive:false});
 const runtime=path.join(output,name);
