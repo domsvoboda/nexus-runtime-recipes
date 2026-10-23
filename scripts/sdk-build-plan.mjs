@@ -6,9 +6,15 @@ export function sdkContainerOption(engine = 'docker') {
   return `--container-engine=${engine}`;
 }
 
-export function sdkBuildPlan(build, epoch) {
+export function sdkBuildJobs(value = 4) {
+  if (!/^(?:[1-9]|[12][0-9]|3[0-2])$/.test(String(value))) throw Error('Invalid SDK job count');
+  return Number(value);
+}
+
+export function sdkBuildPlan(build, epoch, jobs = 4) {
   if (!path.isAbsolute(build) || !/^[0-9]+$/.test(epoch)) throw Error('Invalid SDK build inputs');
-  const common = ['-j4', 'J=4', `SOURCE_DATE_EPOCH=${epoch}`];
+  const count = sdkBuildJobs(jobs);
+  const common = [`-j${count}`, `J=${count}`, `SOURCE_DATE_EPOCH=${epoch}`];
   return [
     // Proton module64 does not depend on its host-tools stamp. A clean parallel
     // module build can otherwise launch a second WIDL make in the same tree.

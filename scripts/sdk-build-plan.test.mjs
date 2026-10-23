@@ -5,7 +5,16 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
-import {sdkBuildPlan,sdkContainerOption} from './sdk-build-plan.mjs';
+import {sdkBuildPlan,sdkContainerOption,sdkBuildJobs} from './sdk-build-plan.mjs';
+
+test('explicit worker counts remain bounded and CI keeps four by default', () => {
+  assert.equal(sdkBuildJobs(), 4);
+  for (const count of [1, 8, 16, 32, '16']) {
+    assert.equal(sdkBuildJobs(count), Number(count));
+    for (const stage of sdkBuildPlan('/build', '123', count)) assert.deepEqual(stage.args.slice(0, 2), [`-j${count}`, `J=${count}`]);
+  }
+  for (const value of [0, 33, -1, 1.5, '', '016', '16 extra', NaN, null]) assert.throws(() => sdkBuildJobs(value));
+});
 
 test('rootless Podman is opt-in and CI still defaults to Docker', () => {
   assert.equal(sdkContainerOption(), '--container-engine=docker');

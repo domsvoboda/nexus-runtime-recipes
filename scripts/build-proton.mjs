@@ -2,10 +2,11 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import {project,run,readJson,verifyRecipe,sha256} from './recipe.mjs';
-import {sdkBuildPlan,sdkContainerOption} from './sdk-build-plan.mjs';
+import {sdkBuildPlan,sdkContainerOption,sdkBuildJobs} from './sdk-build-plan.mjs';
 const [preparedArg,auxArg,outputArg]=process.argv.slice(2);
 if(!preparedArg||!auxArg||!outputArg||process.argv.length!==5)throw Error('Usage: build-proton.mjs PREPARED AUXILIARY NEW_OUTPUT');
 const containerOption=sdkContainerOption(process.env.NEXUS_CONTAINER_ENGINE);
+const jobs=sdkBuildJobs(process.env.NEXUS_BUILD_JOBS);
 const prepared=await fs.realpath(preparedArg),aux=await fs.realpath(auxArg),output=path.resolve(outputArg);
 const {proton,patches}=await verifyRecipe(),proof=await readJson(path.join(prepared,'prepared.json'));
 if(JSON.stringify(proof.proton)!==JSON.stringify(proton)||!proof.fullSubmodules||proof.sourceLockSha256!==sha256(await fs.readFile(path.join(project,'scripts/runtime-patches.lock.json'))))throw Error('Full pinned preparation required');
@@ -26,7 +27,7 @@ const name=`nexus-runtime-11.0-experimental-g${revision}`;
 run(path.join(source,'configure.sh'),[`--build-name=${name}`,containerOption,`--proton-sdk-image=${proton.sdk}`,'--enable-ccache'],build);
 // Each make completes before the next starts. All stages use the same official
 // SDK, build directory and compiler flags, then reuse their compiled objects.
-for(const stage of sdkBuildPlan(build,epoch)){
+for(const stage of sdkBuildPlan(build,epoch,jobs)){
   console.log(stage.name);
   run('make',stage.args,build,{timeout:stage.timeout});
 }
