@@ -381,10 +381,18 @@
       "recount": true
     },
     {
+      "file": "assets/proton-host-tools-nls.patch",
+      "sha256": "f3bae8a003edbe6e52a2c06d33c82a030272dfb518cc722a57af3fdc654ebae5",
+      "repository": "proton"
+    },
+    {
       "file": "assets/wine-sdk-c-declarations.patch",
       "sha256": "1a34ebd172fae1a451d488c1ea3f06d362b41addfbe2fad079f1d9f3843b0557"
     }
   ],
+  "expectedProtonSources": {
+    "make/rules-wine-tools.mk": "7718382f90218a3366a7d2feafa05ccec5fd003c80281b809525418793e72317"
+  },
   "expectedWineSources": {
     "dlls/twinapi.appcore/main.c": "867b24b1a57331b9d28ba1355033e7b3a6f899bcccd6af024ea43c21b24c722e",
     "dlls/twinapi.appcore/appstate-registration.h": "f011a711a77fd91a7d30d63f91adebcc31a2c161130af1160cd2b960f812f016"
