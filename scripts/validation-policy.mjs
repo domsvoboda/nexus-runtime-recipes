@@ -4,12 +4,16 @@ import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {createReadStream} from 'node:fs';
 export const contractNames=Object.freeze(['appstate','appstate-source','appconstrained','appconstrained-source','hlsl-state-keywords','game-relaunch','taskqueue-teardown','taskqueue-contract','taskqueue-close','async-provider-contract','async-completion-lifetime','async-schedule','gamesave-files','gamesave-sync','gamesave-transfer','winrt-json','token-dispatch','user-privilege','store-entitlements','package-content','package-identity','package-legacy','package-chunks','package-monitors','package-progress-bytes','system-device-id','user-device-association','user-audio','playfab-folder','playfab-session','runtime-init-inline','runtime-init-retry','runtime-init-default']);
+function successfulChecks(summary){
+  if(!Array.isArray(summary)||summary.some(s=>typeof s!=='string'||/^FAIL(?:\s|$)/.test(s)||/\bfailures(?:=| )[1-9][0-9]*/i.test(s)))return false;
+  return summary.some(s=>/\bCHECKS [1-9][0-9]*.*\bFAILURES 0(?:\D|$)/.test(s)||/\bchecks=[1-9][0-9]* failures=0(?:\D|$)/.test(s));
+}
 export function validateResults({contracts,http,media,graphics}){
   if(!Array.isArray(contracts?.results)||contracts.results.length!==contractNames.length)throw Error('Incomplete native contracts');
   const names=contracts.results.map(x=>x.name);
   if(new Set(names).size!==names.length||contractNames.some(n=>!names.includes(n)))throw Error('Wrong or duplicate native contracts');
-  for(const result of contracts.results)if(result.code!==0||result.timedOut!==false)throw Error('Native contract failed: '+result.name);
-  if(http?.code!==0||http.timedOut!==false)throw Error('HTTP validation failed');
+  for(const result of contracts.results)if(result.code!==0||result.timedOut!==false||!successfulChecks(result.summary))throw Error('Native contract failed: '+result.name);
+  if(http?.code!==0||http.timedOut!==false||!successfulChecks(http.summary))throw Error('HTTP validation failed');
   if(media?.h264!==true||media.aac!==true||media.bundledLibraries!==true)throw Error('Media validation failed');
   if(graphics?.code!==0||graphics.timeout!==false||!Array.isArray(graphics.summary)||!graphics.summary.some(s=>/^DXVK COMPUTE CHECKS [1-9][0-9]* FAILURES 0\s*$/.test(s)))throw Error('Graphics validation failed');
 }
