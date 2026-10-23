@@ -10,6 +10,8 @@
 #include "private.h"
 #undef TRACE
 #define TRACE(...) printf(__VA_ARGS__)
+#undef WARN
+#define WARN(...) printf(__VA_ARGS__)
 
 char *storeId = "B00000000001";
 static HANDLE bridge_started, bridge_gate;
@@ -39,6 +41,7 @@ HRESULT xpackage_query_content_store(const char *identifier, SIZE_T size, char *
     strcpy(store, "B00000000001"); return S_OK;
 }
 #include "xstore_package_license.h"
+#include "xstore_addon_license.h"
 
 static unsigned checks, failures, callbacks, enumerated;
 #define CHECK(name, expr) do { ++checks; if (!(expr)) { ++failures; printf("FAIL %s line=%d\n", name, __LINE__); } } while (0)
@@ -393,7 +396,28 @@ static void test_package_licenses(void)
     CHECK("license-unowned-no-grant", package_license_from_snapshot(&proof, product.storeId, threads, &license) == E_ACCESSDENIED && !license);
     product.isInUserCollection = TRUE; product.hasDigitalDownload = FALSE;
     CHECK("license-no-package-no-grant", package_license_from_snapshot(&proof, product.storeId, threads, &license) == E_ACCESSDENIED);
+    CHECK("durable-no-package-proof-grant", durable_license_from_snapshot(&proof, product.storeId, threads, &license) == S_OK && license);
+    if (license) { CHECK("durable-no-package-proof-bound", license->until == proof.proof_until); package_license_dispose(license); license = NULL; }
+    product.hasDigitalDownload = TRUE;
+    CHECK("durable-package-proof-grant", durable_license_from_snapshot(&proof, product.storeId, threads, &license) == S_OK && license);
+    if (license) { package_license_dispose(license); license = NULL; }
+    proof.proof_until = 0;
+    CHECK("durable-no-proof-no-grant", durable_license_from_snapshot(&proof, product.storeId, threads, &license) == E_ACCESSDENIED && !license);
+    proof.proof_until = time(NULL) + 60; sku.isTrial = TRUE;
+    CHECK("durable-trial-no-grant", durable_license_from_snapshot(&proof, product.storeId, threads, &license) == E_ACCESSDENIED && !license);
+    sku.isTrial = FALSE; sku.isInUserCollection = FALSE;
+    CHECK("durable-unowned-sku-no-grant", durable_license_from_snapshot(&proof, product.storeId, threads, &license) == E_ACCESSDENIED && !license);
+    sku.isInUserCollection = TRUE; product.isInUserCollection = FALSE;
+    CHECK("durable-unowned-product-no-grant", durable_license_from_snapshot(&proof, product.storeId, threads, &license) == E_ACCESSDENIED && !license);
+    product.isInUserCollection = TRUE;
+    CHECK("durable-wrong-product-no-grant", durable_license_from_snapshot(&proof, "B00000000002", threads, &license) == E_ACCESSDENIED && !license);
+    sku.collectionData.endDate = -1;
+    CHECK("durable-negative-expiry-no-grant", durable_license_from_snapshot(&proof, product.storeId, threads, &license) == E_ACCESSDENIED && !license);
+    sku.collectionData.endDate = time(NULL) - 1;
+    CHECK("durable-expired-sku-no-grant", durable_license_from_snapshot(&proof, product.storeId, threads, &license) == E_ACCESSDENIED && !license);
+    sku.collectionData.endDate = time(NULL) + 3600;
     product.hasDigitalDownload = TRUE; product.productKind = XStoreProductKind_Game;
+    CHECK("durable-base-no-grant", durable_license_from_snapshot(&proof, product.storeId, threads, &license) == E_ACCESSDENIED && !license);
     CHECK("license-base-not-durable", package_license_from_snapshot(&proof, product.storeId, threads, &license) == E_ACCESSDENIED);
     product.productKind = XStoreProductKind_Durable; sku.isTrial = TRUE;
     CHECK("license-trial-not-full", package_license_from_snapshot(&proof, product.storeId, threads, &license) == E_ACCESSDENIED);
@@ -512,6 +536,226 @@ done:
     if (immediate) IXThreadingImpl_XTaskQueueCloseHandle(threads, immediate);
     if (queue) IXThreadingImpl_XTaskQueueCloseHandle(threads, queue);
     IXThreadingImpl_Release(threads);
+}
+
+static void test_durable_acquisition(void)
+{
+    IXThreadingImpl *threads = NULL;
+    XTaskQueueHandle queue = NULL;
+    XStoreContextHandle store = NULL;
+    XStoreLicenseHandle result;
+    XAsyncBlock block = {0};
+    struct package_license_async context = {0};
+    UINT64 xuid;
+    UINT mode;
+    ULONGLONG start;
+    CHECK("durable-threading", QueryApiImpl(&CLSID_XThreadingImpl, &IID_IXThreadingImpl, (void **)&threads) == S_OK && threads);
+    if (!threads) return;
+    CHECK("durable-queue", IXThreadingImpl_XTaskQueueCreate(threads, XTaskQueueDispatchMode_Manual, XTaskQueueDispatchMode_Manual, &queue) == S_OK);
+    CHECK("durable-invalid-context", durable_license_begin((void *)1, "B00000000001", &block) == E_INVALIDARG);
+    CHECK("durable-context-create", entitled_store_create(NULL, &store) == S_OK);
+    CHECK("durable-invalid-id", durable_license_begin(store, "invalid<&", &block) == E_INVALIDARG);
+    CHECK("durable-null-id", durable_license_begin(store, NULL, &block) == E_INVALIDARG);
+    CHECK("durable-null-async", durable_license_begin(store, "B00000000001", NULL) == E_INVALIDARG);
+    context.durable = TRUE; context.store_context = store;
+    CHECK("durable-store-identity", entitled_store_identity(store, &xuid, &context.store_serial) == S_OK);
+    CHECK("durable-store-live", durable_license_context_valid(&context));
+    context.store_serial++;
+    CHECK("durable-wrong-generation", !durable_license_context_valid(&context));
+    context.store_serial--;
+    entitled_store_close(store);
+    CHECK("durable-store-closed", !durable_license_context_valid(&context));
+    for (mode = 0; mode < 3; mode++)
+    {
+        ResetEvent(bridge_started); ResetEvent(bridge_gate); callbacks = 0;
+        memset(&block, 0, sizeof(block)); block.queue = queue; block.callback = complete;
+        CHECK("durable-store", entitled_store_create(NULL, &store) == S_OK);
+        CHECK("durable-begin", durable_license_begin(store, "B00000000002", &block) == S_OK);
+        if (mode != 1)
+        {
+            start = GetTickCount64();
+            CHECK("durable-work", IXThreadingImpl_XTaskQueueDispatch(threads, queue, XTaskQueuePort_Work, 0));
+            CHECK("durable-work-nonblocking", GetTickCount64() - start < 200);
+            CHECK("durable-worker-started", WaitForSingleObject(bridge_started, 2000) == WAIT_OBJECT_0);
+        }
+        if (mode) IXThreadingImpl_XAsyncCancel(threads, &block);
+        if (mode == 1) IXThreadingImpl_XTaskQueueDispatch(threads, queue, XTaskQueuePort_Work, 0);
+        SetEvent(bridge_gate); dispatch_until_complete(threads, queue, &block);
+        CHECK("durable-error-preserved", IXThreadingImpl_XAsyncGetStatus(threads, &block, FALSE) == (mode ? E_ABORT : E_FAIL));
+        CHECK("durable-callback-once", callbacks == 1);
+        result = (void *)1;
+        CHECK("durable-failed-no-license", FAILED(durable_license_result(&block, &result)) && !result);
+        entitled_store_close(store);
+        start = GetTickCount64(); while (bridge_active && GetTickCount64() - start < 2000) Sleep(1);
+        CHECK("durable-worker-drained", !bridge_active);
+    }
+    CHECK("durable-no-live-handles", !package_licenses && !package_license_registrations);
+    IXThreadingImpl_XTaskQueueCloseHandle(threads, queue);
+    IXThreadingImpl_Release(threads);
+}
+
+/* Only this test executable constructs successful fixture snapshots. The DLL
+ * still obtains every successful result through the real signed transport. */
+static HRESULT WINAPI addon_fixture_provider(XAsyncOp op, const XAsyncProviderData *data)
+{
+    struct addon_license_async *context = data->context;
+    if (op == XAsyncOp_Begin)
+    {
+        IXThreadingImpl_XAsyncComplete(context->threading, data->async, S_OK,
+            sizeof(struct addon_result_header) + context->count * sizeof(XStoreAddonLicense));
+        return S_OK;
+    }
+    return addon_license_provider(op, data);
+}
+
+static void test_addon_licenses(void)
+{
+    XStoreProduct products[2] = {{0}};
+    XStoreSku skus[2] = {{0}};
+    struct entitled_snapshot proof = {0};
+    XStoreAddonLicense *licenses = NULL, output[2];
+    UINT32 count = 99, repeated;
+    UINT64 until, xuid;
+    UINT mode;
+    IXThreadingImpl *threads = NULL;
+    XTaskQueueHandle queue = NULL;
+    XStoreContextHandle store;
+    XStoreLicenseHandle wrong;
+    XAsyncBlock block = {0};
+    struct addon_license_async *context;
+    ULONGLONG start;
+    products[0].storeId = storeId; products[0].productKind = XStoreProductKind_Game;
+    products[0].isInUserCollection = products[0].hasDigitalDownload = TRUE;
+    products[0].skus = &skus[0]; products[0].skusCount = 1;
+    products[1].storeId = "B00000000002"; products[1].productKind = XStoreProductKind_Durable;
+    products[1].isInUserCollection = TRUE; products[1].inAppOfferToken = "bonus";
+    products[1].skus = &skus[1]; products[1].skusCount = 1;
+    skus[0].skuId = skus[1].skuId = "0010";
+    skus[0].isInUserCollection = skus[1].isInUserCollection = TRUE;
+    skus[0].collectionData.endDate = time(NULL) + 3600;
+    skus[1].collectionData.endDate = time(NULL) + 1800;
+    proof.products = products; proof.count = 2;
+    CHECK("addon-unsigned-denied", addon_licenses_from_snapshot(&proof, &licenses, &count, &until) == E_ACCESSDENIED && !licenses && !count);
+    proof.proof_until = time(NULL) + 60;
+    CHECK("addon-proof", addon_licenses_from_snapshot(&proof, &licenses, &count, &until) == S_OK && count == 1 && licenses);
+    if (licenses)
+    {
+        CHECK("addon-sku-id", !strcmp(licenses[0].skuStoreId, "B00000000002/0010"));
+        CHECK("addon-offer-token", !strcmp(licenses[0].inAppOfferToken, "bonus"));
+        CHECK("addon-proof-expiry", licenses[0].isActive && licenses[0].expirationDate == proof.proof_until && until == proof.proof_until);
+        free(licenses); licenses = NULL;
+    }
+    skus[0].collectionData.endDate = time(NULL) + 10;
+    CHECK("addon-base-expiry", addon_licenses_from_snapshot(&proof, &licenses, &count, &until) == S_OK && count == 1 && until == skus[0].collectionData.endDate);
+    free(licenses); licenses = NULL;
+    skus[0].collectionData.endDate = time(NULL) + 3600;
+    skus[1].collectionData.endDate = time(NULL) + 20;
+    CHECK("addon-sku-expiry", addon_licenses_from_snapshot(&proof, &licenses, &count, &until) == S_OK && count == 1 && until == skus[1].collectionData.endDate);
+    free(licenses); licenses = NULL;
+    skus[1].isTrial = TRUE;
+    CHECK("addon-trial-excluded", addon_licenses_from_snapshot(&proof, &licenses, &count, &until) == S_OK && !licenses && !count);
+    skus[1].isTrial = FALSE; skus[1].isInUserCollection = FALSE;
+    CHECK("addon-unowned-sku-excluded", addon_licenses_from_snapshot(&proof, &licenses, &count, &until) == S_OK && !licenses && !count);
+    skus[1].isInUserCollection = TRUE; skus[1].collectionData.endDate = -1;
+    CHECK("addon-negative-expiry-excluded", addon_licenses_from_snapshot(&proof, &licenses, &count, &until) == S_OK && !licenses && !count);
+    skus[1].collectionData.endDate = time(NULL) - 1;
+    CHECK("addon-expired-excluded", addon_licenses_from_snapshot(&proof, &licenses, &count, &until) == S_OK && !licenses && !count);
+    skus[1].collectionData.endDate = time(NULL) + 1800; products[1].isInUserCollection = FALSE;
+    CHECK("addon-unowned-excluded", addon_licenses_from_snapshot(&proof, &licenses, &count, &until) == S_OK && !licenses && !count);
+    products[1].isInUserCollection = TRUE; products[1].hasDigitalDownload = TRUE;
+    CHECK("addon-package-excluded", addon_licenses_from_snapshot(&proof, &licenses, &count, &until) == S_OK && !licenses && !count);
+    products[1].hasDigitalDownload = FALSE; products[0].isInUserCollection = FALSE;
+    CHECK("addon-no-base-license-empty", addon_licenses_from_snapshot(&proof, &licenses, &count, &until) == S_OK && !licenses && !count);
+    products[0].isInUserCollection = TRUE; products[0].hasDigitalDownload = FALSE;
+    CHECK("addon-no-digital-base-empty", addon_licenses_from_snapshot(&proof, &licenses, &count, &until) == S_OK && !licenses && !count);
+    products[0].hasDigitalDownload = TRUE;
+    products[1].inAppOfferToken = "0123456789012345678901234567890123456789012345678901234567890123";
+    CHECK("addon-long-token-not-truncated", addon_licenses_from_snapshot(&proof, &licenses, &count, &until) == E_UNEXPECTED && !licenses && !count);
+    products[1].inAppOfferToken = "bonus";
+    CHECK("addon-threading", QueryApiImpl(&CLSID_XThreadingImpl, &IID_IXThreadingImpl, (void **)&threads) == S_OK && threads);
+    if (!threads) return;
+    CHECK("addon-queue", IXThreadingImpl_XTaskQueueCreate(threads, XTaskQueueDispatchMode_Manual, XTaskQueueDispatchMode_Manual, &queue) == S_OK);
+    CHECK("addon-invalid-store", addon_license_begin((void *)1, &block) == E_INVALIDARG);
+    CHECK("addon-null-async", addon_license_begin(NULL, NULL) == E_INVALIDARG);
+    for (mode = 0; mode < 4; mode++)
+    {
+        CHECK("addon-result-store", entitled_store_create(NULL, &store) == S_OK);
+        context = calloc(1, sizeof(*context));
+        CHECK("addon-result-context", context != NULL);
+        if (!context) break;
+        context->refs = 1; context->threading = threads; IXThreadingImpl_AddRef(threads);
+        context->store = store; context->until = time(NULL) + 60;
+        entitled_store_identity(store, &xuid, &context->serial);
+        if (mode) CHECK("addon-result-proof", addon_licenses_from_snapshot(&proof, &context->licenses, &context->count, &context->until) == S_OK);
+        memset(&block, 0, sizeof(block)); block.queue = queue; context->async = &block;
+        AcquireSRWLockExclusive(&addon_license_lock); context->next = addon_license_requests; addon_license_requests = context; ReleaseSRWLockExclusive(&addon_license_lock);
+        CHECK("addon-fixture-begin", IXThreadingImpl_XAsyncBegin(threads, &block, context, &addon_license_identity, "fixture", addon_fixture_provider) == S_OK);
+        CHECK("addon-result-count", addon_license_count(&block, &count) == S_OK && count == (mode ? 1 : 0));
+        CHECK("addon-count-repeat-not-consumed", addon_license_count(&block, &repeated) == S_OK && repeated == count);
+        wrong = (void *)1;
+        CHECK("addon-wrong-result-identity", durable_license_result(&block, &wrong) == E_INVALIDARG && !wrong);
+        if (mode == 1)
+        {
+            CHECK("addon-short-buffer-retry", addon_license_result(&block, 0, output) == E_NOT_SUFFICIENT_BUFFER);
+            CHECK("addon-null-buffer-retry", addon_license_result(&block, count, NULL) == E_INVALIDARG);
+        }
+        if (mode == 2) context->until = time(NULL) - 1;
+        if (mode == 3) entitled_store_close(store);
+        memset(output, 0xa5, sizeof(output));
+        CHECK("addon-result", addon_license_result(&block, count, mode ? output : NULL) == (mode == 2 ? E_ACCESSDENIED : mode == 3 ? E_INVALIDARG : S_OK));
+        if (mode == 1) CHECK("addon-result-data", !strcmp(output[0].skuStoreId, "B00000000002/0010") && output[0].isActive);
+        if (mode >= 2) CHECK("addon-result-error-preserves-buffer", ((BYTE *)output)[0] == 0xa5);
+        CHECK("addon-result-consumed", addon_license_count(&block, &count) == E_INVALIDARG && !count);
+        if (mode != 3) entitled_store_close(store);
+        CHECK("addon-context-drained", !addon_license_requests);
+    }
+    for (mode = 0; mode < 3; mode++)
+    {
+        ResetEvent(bridge_started); ResetEvent(bridge_gate); callbacks = 0;
+        memset(&block, 0, sizeof(block)); block.queue = queue; block.callback = complete;
+        CHECK("addon-worker-store", entitled_store_create(NULL, &store) == S_OK);
+        CHECK("addon-worker-begin", addon_license_begin(store, &block) == S_OK);
+        CHECK("addon-count-pending", addon_license_count(&block, &count) == E_PENDING && !count);
+        if (mode != 1)
+        {
+            start = GetTickCount64();
+            CHECK("addon-dispatch-work", IXThreadingImpl_XTaskQueueDispatch(threads, queue, XTaskQueuePort_Work, 0));
+            CHECK("addon-nonblocking-work", GetTickCount64() - start < 200);
+            CHECK("addon-worker-started", WaitForSingleObject(bridge_started, 2000) == WAIT_OBJECT_0);
+        }
+        if (mode) IXThreadingImpl_XAsyncCancel(threads, &block);
+        if (mode == 1) IXThreadingImpl_XTaskQueueDispatch(threads, queue, XTaskQueuePort_Work, 0);
+        SetEvent(bridge_gate); dispatch_until_complete(threads, queue, &block);
+        CHECK("addon-error-preserved", addon_license_count(&block, &count) == (mode ? E_ABORT : E_FAIL) && !count);
+        CHECK("addon-result-error-preserved", addon_license_result(&block, 0, NULL) == (mode ? E_ABORT : E_FAIL));
+        CHECK("addon-callback-once", callbacks == 1);
+        entitled_store_close(store);
+        start = GetTickCount64(); while (bridge_active && GetTickCount64() - start < 2000) Sleep(1);
+        CHECK("addon-worker-drained", !bridge_active && !addon_license_requests);
+    }
+    IXThreadingImpl_XTaskQueueCloseHandle(threads, queue); IXThreadingImpl_Release(threads);
+}
+
+static void test_related_hints(void)
+{
+    char ids[256][13] = {{0}}, before[256][13], hint[3400];
+    UINT32 count, i;
+    const char *bad[] = {"invalid", "B00000000002,", ",B00000000002", "B00000000002,,B00000000003",
+        "B00000000002,B0000000000<", "B00000000002;B00000000003", "b00000000002", "B00000000002\n"};
+    strcpy(ids[0], "B00000000001");count = 1;
+    CHECK("related-hint-merge", entitled_merge_hint(ids, &count, "B00000000002,B00000000001,B00000000003") && count == 3);
+    CHECK("related-hint-order", !strcmp(ids[0], "B00000000001") && !strcmp(ids[1], "B00000000002") && !strcmp(ids[2], "B00000000003"));
+    CHECK("related-hint-null", entitled_merge_hint(ids, &count, NULL) && count == 3);
+    CHECK("related-hint-empty", entitled_merge_hint(ids, &count, "") && count == 3);
+    memcpy(before, ids, sizeof(ids));
+    for (i = 0; i < ARRAY_SIZE(bad); i++)
+        CHECK("related-hint-invalid-atomic", !entitled_merge_hint(ids, &count, bad[i]) && count == 3 && !memcmp(ids, before, sizeof(ids)));
+    memset(hint, 'B', sizeof(hint) - 1); hint[sizeof(hint) - 1] = 0;
+    CHECK("related-hint-oversized", !entitled_merge_hint(ids, &count, hint) && count == 3 && !memcmp(ids, before, sizeof(ids)));
+    for (i = 0; i < 256; i++) snprintf(ids[i], sizeof(ids[i]), "B%011u", i);
+    count = 256;memcpy(before, ids, sizeof(ids));
+    CHECK("related-hint-limit-duplicate", entitled_merge_hint(ids, &count, "B00000000000") && count == 256);
+    CHECK("related-hint-limit-atomic", !entitled_merge_hint(ids, &count, "B00000000000,B00000000999") && count == 256 && !memcmp(ids, before, sizeof(ids)));
 }
 
 struct game_test_context
@@ -760,6 +1004,11 @@ int main(void)
         }
         XAsyncBlock invalid_license = {0};
         CHECK("runtime-license-invalid-context", IXStoreImpl6_XStoreAcquireLicenseForPackageAsync(store_api, (void *)1, "00000001111122223333444444444444", &invalid_license) == E_INVALIDARG);
+        CHECK("runtime-durable-invalid-context", IXStoreImpl6_XStoreAcquireLicenseForDurablesAsync(store_api, (void *)1, "B00000000002", &invalid_license) == E_INVALIDARG);
+        CHECK("runtime-durable-null-result", IXStoreImpl6_XStoreAcquireLicenseForDurablesResult(store_api, NULL, NULL) == E_INVALIDARG);
+        CHECK("runtime-addon-invalid-context", IXStoreImpl6_XStoreQueryAddOnLicensesAsync(store_api, (void *)1, &invalid_license) == E_INVALIDARG);
+        CHECK("runtime-addon-null-count", IXStoreImpl6_XStoreQueryAddOnLicensesResultCount(store_api, NULL, NULL) == E_INVALIDARG);
+        CHECK("runtime-addon-invalid-result", IXStoreImpl6_XStoreQueryAddOnLicensesResult(store_api, NULL, 0, NULL) == E_INVALIDARG);
         CHECK("runtime-license-invalid-handle", !IXStoreImpl6_XStoreIsLicenseValid(store_api, (void *)1));
         IXStoreImpl6_XStoreCloseLicenseHandle(store_api, (void *)1);
         IXStoreImpl6_XStoreCloseContextHandle(store_api, store);
@@ -769,7 +1018,7 @@ int main(void)
         IXStoreImpl6_Release(store_api);
     }
     bridge_started = CreateEventA(NULL, TRUE, FALSE, NULL); bridge_gate = CreateEventA(NULL, TRUE, FALSE, NULL);
-    test_receipts(); test_async(test_metadata()); test_package_licenses(); test_game_licenses();
+    test_related_hints(); test_receipts(); test_async(test_metadata()); test_package_licenses(); test_durable_acquisition(); test_addon_licenses(); test_game_licenses();
     CloseHandle(bridge_started); CloseHandle(bridge_gate);
     if (SUCCEEDED(hr)) RoUninitialize();
     printf("CHECKS %u FAILURES %u\n", checks, failures);
