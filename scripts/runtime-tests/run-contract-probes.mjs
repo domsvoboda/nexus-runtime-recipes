@@ -65,6 +65,15 @@ try {
       if (finish.code || finish.timedOut) throw new Error(`File-provider shutdown failed; see ${root}`);
     }
   }
+  for (const bits of [64,32]) {
+    const name=`concrt-vector-${bits}`;
+    const result=await run(wine,[path.join(tests,`${name}-probe.exe`)]);
+    await fs.writeFile(path.join(root,`${name}.log`),result.output,{mode:0o600});
+    const summary=result.output.split(/\r?\n/).filter(line=>/^(FAIL |CHECKS )/.test(line));
+    results.push({name,code:result.code,timedOut:result.timedOut,summary});
+    console.log(`${name}: exit=${result.code} timeout=${result.timedOut}\n${summary.join('\n')}`);
+    if(result.code!==0||result.timedOut)throw Error(`CONCRT ${bits}-bit contract failed; see ${root}`);
+  }
   const pgs = await run(wine, [path.join(tests, 'playfab-folder/playfab-folder-probe.exe')], 60000,
     { WINEDLLOVERRIDES: `${env.WINEDLLOVERRIDES};xgameruntime=n;playfabgamesave=n;nexus_pgs_native=n` });
   await fs.writeFile(path.join(root, 'playfab-folder.log'), pgs.output, { mode: 0o600 });

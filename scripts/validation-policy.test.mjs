@@ -7,6 +7,9 @@ import path from 'node:path';
 import {contractNames,validateResults,validateBinding,treeSha256} from './validation-policy.mjs';
 const passing=()=>({contracts:{results:contractNames.map(name=>({name,code:0,timedOut:false,summary:['CHECKS 10 FAILURES 0']}))},http:{code:0,timedOut:false,summary:['SUMMARY checks=432 failures=0']},media:{h264:true,aac:true,bundledLibraries:true},graphics:{code:0,timeout:false,summary:['DXVK COMPUTE CHECKS 40 FAILURES 0']}});
 test('complete native results are accepted without claiming game validation',()=>validateResults(passing()));
+for(const name of ['concrt-vector-64','concrt-vector-32'])test('both CONCRT ABIs are mandatory: '+name,()=>{
+  const v=passing();v.contracts.results=v.contracts.results.filter(row=>row.name!==name);assert.throws(()=>validateResults(v));
+});
 for(const [name,change] of [
   ['missing probe',v=>v.contracts.results.pop()],['duplicate probe',v=>v.contracts.results[1]=v.contracts.results[0]],
   ['unrelated probe',v=>v.contracts.results[0].name='unknown'],['failed probe',v=>v.contracts.results[0].code=1],

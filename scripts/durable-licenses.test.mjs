@@ -8,7 +8,10 @@ const licenses=read('assets/xgameruntime-durable-licenses.patch');
 const hints=read('assets/xgameruntime-related-discovery.patch');
 
 test('DLC runtime patches are independent, ordered and limited to Store implementation, not ABI or transport',()=>{
-  assert.deepEqual(lock.patches.slice(-2).map(row=>row.file),['assets/xgameruntime-durable-licenses.patch','assets/xgameruntime-related-discovery.patch']);
+  const index=lock.patches.findIndex(row=>row.file==='assets/xgameruntime-durable-licenses.patch');
+  assert.ok(index>=0);
+  assert.deepEqual(lock.patches.slice(index,index+2).map(row=>row.file),['assets/xgameruntime-durable-licenses.patch','assets/xgameruntime-related-discovery.patch']);
+  for(const later of lock.patches.slice(index+2))assert.doesNotMatch(read(later.file),/^diff --git a\/dlls\/xgameruntime\/xstore/m,later.file);
   assert.deepEqual([...licenses.matchAll(/^diff --git a\/(\S+)/gm)].map(match=>match[1]).sort(),
     ['dlls/xgameruntime/xstore.c','dlls/xgameruntime/xstore_addon_license.h','dlls/xgameruntime/xstore_package_license.h']);
   assert.deepEqual([...hints.matchAll(/^diff --git a\/(\S+)/gm)].map(match=>match[1]),['dlls/xgameruntime/xstore_entitled.h']);
