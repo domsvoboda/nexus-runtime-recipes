@@ -405,15 +405,20 @@
         "commit": "de43f5434fec4fa44a1d1aad0445bae4a606a5a9",
         "paths": ["dlls/concrt140/details.c"]
       }
+    },
+    {
+      "file": "assets/concrt-queue-iterator.patch",
+      "sha256": "e23749fd834f9870af947a12a4158dd752a68aedeffb86c8aa220c87cd252621"
     }
   ],
   "expectedProtonSources": {
     "make/rules-wine-tools.mk": "7718382f90218a3366a7d2feafa05ccec5fd003c80281b809525418793e72317"
   },
   "expectedWineSources": {
-    "dlls/concrt140/details.c": "e1c92f2fe15b679a6690e6f110d3d89b4cdd5343c79773bb3c5bb89f070b861d",
+    "dlls/concrt140/details.c": "257b2e8971156e8f9e06137a69e7590bbd5816ac9512cd034d255c07b55cd480",
     "dlls/twinapi.appcore/main.c": "867b24b1a57331b9d28ba1355033e7b3a6f899bcccd6af024ea43c21b24c722e",
-    "dlls/twinapi.appcore/appstate-registration.h": "f011a711a77fd91a7d30d63f91adebcc31a2c161130af1160cd2b960f812f016"
+    "dlls/twinapi.appcore/appstate-registration.h": "f011a711a77fd91a7d30d63f91adebcc31a2c161130af1160cd2b960f812f016",
+    "dlls/concrt140/concrt140.spec": "17e7863be79c1fdfb8766da7569c9071a3ed527a1e787ef1f5edb75013e75369"
   },
   "expectedVkd3dSources": {
     "libs/vkd3d-shader/hlsl.l": "4bcde7ac8e4e43ea848483ca78dce9be0c2bf431398a912f53d339c6581791d5"
