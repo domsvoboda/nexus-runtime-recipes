@@ -34,7 +34,8 @@ test('the official SDK module preflight precedes redist without relaxing compile
   assert.equal(stages[0].args.at(-1),'/build/.wine-x86_64-tools');
   assert.deepEqual(stages[1].args.slice(-2),['module=xgameruntime','module']);
   assert.equal(stages[2].args.at(-1),'redist');
-  assert.match(script,/for\(const stage of sdkBuildPlan\(build,epoch\)\)/);
+  assert.match(script,/const jobs=sdkBuildJobs\(process.env.NEXUS_BUILD_JOBS\)/);
+  assert.match(script,/for\(const stage of sdkBuildPlan\(build,epoch,jobs\)\)/);
   assert.match(script,/run\('make',stage.args,build,\{timeout:stage.timeout\}\)/);
   assert.doesNotMatch(script,/-Wno-|--disable-werror|CFLAGS=/);
   assert.match(script,/proton-sdk-image=\$\{proton.sdk\}/);
