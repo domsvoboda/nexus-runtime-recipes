@@ -39,6 +39,11 @@ jobs:
     needs: auxiliary
     runs-on: ubuntu-24.04
     timeout-minutes: 360
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.compiler-cache
+      CCACHE_BASEDIR: ${{ github.workspace }}
+      CCACHE_MAXSIZE: 3G
+      CCACHE_COMPILERCHECK: content
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -62,13 +67,20 @@ jobs:
       - run: npm test && npm run check
       - name: Prepare exact complete upstream source tree
         run: node scripts/prepare-runtime.mjs --work "$PWD/work/source" --full
-      - uses: actions/cache@v4
+      - uses: actions/cache/restore@v4
+        id: ccache-restore
         with:
-          path: ~/.ccache
+          path: .compiler-cache
           key: proton-sdk-${{ hashFiles('scripts/proton.lock.json') }}-${{ github.sha }}
           restore-keys: proton-sdk-${{ hashFiles('scripts/proton.lock.json') }}-
       - name: Build coherent Proton in pinned SDK
         run: node scripts/build-proton.mjs "$PWD/work/source" "$PWD/work/auxiliary" "$PWD/dist"
+      - name: Save compiler cache even after a failed compile
+        if: always() && !cancelled() && steps.ccache-restore.outcome == 'success' && steps.ccache-restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .compiler-cache
+          key: ${{ steps.ccache-restore.outputs.cache-primary-key }}
       - name: Compile synthetic test fixtures only
         run: node scripts/build-probes.mjs "$PWD/work/source" "$PWD/work/auxiliary"
       - name: Native contract, HTTP/TLS, media and graphics validation
