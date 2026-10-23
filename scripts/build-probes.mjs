@@ -2,7 +2,8 @@
 // Host-built executables are test fixtures only. Their DLLs never enter a runtime.
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import {project,run as execute} from './recipe.mjs';
+import {project,run as execute,verifyRecipe} from './recipe.mjs';
+import {shaderProbeFlags} from './shader-version.mjs';
 import {buildPlayFabSessionProbe} from './runtime-tests/build-playfab-session.mjs';
 import {buildStoreProbes} from './runtime-tests/build-store-probes.mjs';
 import {buildSaveSyncProbe} from './runtime-tests/build-gamesave-sync-probe.mjs';
@@ -11,6 +12,8 @@ import {buildUserPrivilegeProbe} from './runtime-tests/build-user-privilege-prob
 const [preparedArg,auxArg]=process.argv.slice(2);
 if(!preparedArg||!auxArg||process.argv.length!==4)throw Error('Usage: build-probes.mjs PREPARED AUXILIARY');
 const work=await fs.realpath(preparedArg),source=path.join(work,'proton/wine');
+const {patches}=await verifyRecipe();
+const shaderFlags=shaderProbeFlags(await fs.readFile(path.join(work,'proton/vkd3d/configure.ac'),'utf8'),patches.sources.vkd3d.version);
 const aux=await fs.realpath(auxArg),build=path.join(work,'probe-build'),tests=path.join(work,'tests');
 const run=(command,args,cwd,capture=false)=>execute(command,args,cwd,{capture});
 await fs.mkdir(build);await fs.mkdir(tests);
@@ -24,7 +27,7 @@ const gcc=(file,output,flags=[],headers=include)=>run('x86_64-w64-mingw32-gcc',[
 gcc('game-relaunch-probe.c',path.join(tests,'game-relaunch-probe.exe'),['-municode']);
 for(const constrained of [false,true])for(const fixture of [false,true])gcc('appstate-probe.c',path.join(tests,`${constrained?'appconstrained':'appstate'}${fixture?'-source':''}-probe.exe`),[
   ...(constrained?['-DAPPCONSTRAINED_PROBE']:[]),...(fixture?['-DAPPSTATE_SOURCE_FIXTURE','-I',path.join(source,'dlls/twinapi.appcore')]:[]),'-Wextra','-Werror','-lruntimeobject']);
-gcc('hlsl-state-keywords-probe.c',path.join(tests,'hlsl-state-keywords-probe.exe'),['-std=c11','-Wextra','-Werror'],[]);
+gcc('hlsl-state-keywords-probe.c',path.join(tests,'hlsl-state-keywords-probe.exe'),shaderFlags,[]);
 const pgs=path.join(tests,'playfab-folder');await fs.mkdir(pgs);
 const definition=(await fs.readFile(path.join(project,'scripts/runtime-compat/playfab-save-folder.def'),'utf8')).replace(/^(PF\w+)(?:=\S+)? @(\d+)$/gm,(_,name,ordinal)=>`${name}${name==='PFGameSaveFilesInitialize'?'':'=probe_stub'} @${ordinal}`);
 await fs.writeFile(path.join(pgs,'fixture.def'),definition,{flag:'wx'});
