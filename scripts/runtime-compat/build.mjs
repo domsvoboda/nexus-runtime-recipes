@@ -5,6 +5,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+export const windowsTarget=Object.freeze(['-D_WIN32_WINNT=0x0601','-DWINVER=0x0601']);
 export async function buildCompatibility(output) {
   const source = path.dirname(fileURLToPath(import.meta.url));
   await fs.mkdir(output, { recursive: true });
@@ -19,13 +20,13 @@ export async function buildCompatibility(output) {
   const env = { ...process.env };
   for (const key of ['LD_LIBRARY_PATH', 'LD_PRELOAD', 'CPATH', 'LIBRARY_PATH']) delete env[key];
   const run = (command, args) => execFileSync(command, args, { env, stdio: 'inherit' });
-  run('x86_64-w64-mingw32-gcc', ['-shared', '-O2', '-Wall', '-Wextra', '-Werror',
+  run('x86_64-w64-mingw32-gcc', [...windowsTarget, '-shared', '-O2', '-Wall', '-Wextra', '-Werror',
     '-Wl,--no-insert-timestamp', '-o', path.join(output, 'PlayFabGameSave.dll'),
     path.join(source, 'playfab-save-folder.c'), path.join(source, 'playfab-session.c'),
     path.join(source, 'playfab-save-folder.def')]);
   run('gcc', ['-O2', '-Wall', '-Wextra', '-Werror', '-I', output,
     '-o', path.join(output, 'wine-launcher'), path.join(source, 'wine-launcher.c')]);
-  run('x86_64-w64-mingw32-gcc', ['-O2', '-Wall', '-Wextra', '-Werror', '-Wl,--no-insert-timestamp',
+  run('x86_64-w64-mingw32-gcc', [...windowsTarget, '-O2', '-Wall', '-Wextra', '-Werror', '-Wl,--no-insert-timestamp',
     '-o', path.join(output, 'gaming-services-version.exe'), path.join(source, 'gaming-services-version.c'), '-ladvapi32']);
   const elf = execFileSync('objdump', ['-T', path.join(output, 'wine-launcher')], { env, encoding: 'utf8' });
   for (const [, major, minor] of elf.matchAll(/GLIBC_(\d+)\.(\d+)/g)) {
