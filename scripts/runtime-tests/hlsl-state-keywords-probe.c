@@ -6,6 +6,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifndef NEXUS_VKD3D_VERSION
+#error The shader probe requires the verified pinned source version.
+#endif
+
 typedef HRESULT (WINAPI *compile_fn)(const void *, SIZE_T, const char *, const D3D_SHADER_MACRO *,
         ID3DInclude *, const char *, const char *, UINT, UINT, ID3DBlob **, ID3DBlob **);
 static compile_fn compile_shader;
@@ -16,7 +20,7 @@ static const char *compiler_name;
 
 static void check_creator(ID3DBlob *blob)
 {
-    const char expected[] = "vkd3d-shader 2.0";
+    const char expected[] = "vkd3d-shader " NEXUS_VKD3D_VERSION;
     const DWORD *words = blob ? ID3D10Blob_GetBufferPointer(blob) : NULL;
     SIZE_T count = blob ? ID3D10Blob_GetBufferSize(blob)/sizeof(DWORD) : 0;
     BOOL found = FALSE;
@@ -38,7 +42,7 @@ static void check_creator(ID3DBlob *blob)
     if (!found)
     {
         ++failures;
-        printf("FAIL shader compiler must preserve base vkd3d 2.0, not bundled fallback\n");
+        printf("FAIL shader compiler must match pinned vkd3d %s, not bundled fallback\n", NEXUS_VKD3D_VERSION);
     }
 }
 

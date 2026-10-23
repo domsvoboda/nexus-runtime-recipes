@@ -18,7 +18,7 @@
     "vkd3d": {
       "url": "https://codeberg.org/vkd3d/vkd3d.git",
       "commit": "fed0c3418f815b0bc07533f6fc6f4aa06e8712c3",
-      "version": "2.0"
+      "version": "2.1"
     },
     "vulkan-headers": {
       "url": "https://github.com/KhronosGroup/Vulkan-Headers.git",
