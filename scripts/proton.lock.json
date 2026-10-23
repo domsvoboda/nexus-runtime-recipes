@@ -1,0 +1,18 @@
+{
+  "schema": 1,
+  "channel": "experimental",
+  "proton": {
+    "url": "https://github.com/ValveSoftware/Proton.git",
+    "commit": "7a94df49e4695fc101fd47d614166e69c43d9669",
+    "branch": "experimental_11.0"
+  },
+  "sdk": "registry.gitlab.steamos.cloud/proton/steamrt4/sdk/x86_64@sha256:6c1789cad862fd8ed9d46d71bbf8752bb7cb2336ab5e9680c0f0e3e7c88d77f1",
+  "modules": {
+    "wine": "7fc704ef49c50e9702c9983a5250d5738697bb04",
+    "dxvk": "a78a467cadb22bee928904290cf8e7921b121851",
+    "vkd3d": "fed0c3418f815b0bc07533f6fc6f4aa06e8712c3",
+    "vkd3d-proton": "0bb64c56c8f0dcc11ecc0f6c56e00e4f7bd8d506"
+  },
+  "requiresBackendVersion": "0.2.11",
+  "requiresLauncherVersion": "0.3.11"
+}
