@@ -3,6 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import {project,run,readJson,verifyRecipe,sha256} from './recipe.mjs';
 import {sdkBuildPlan,sdkContainerOption,sdkBuildJobs,verifySdkResumeMakefile} from './sdk-build-plan.mjs';
+import {copySdkRedistribution} from './runtime-copy.mjs';
 const [preparedArg,auxArg,outputArg]=process.argv.slice(2);
 if(!preparedArg||!auxArg||!outputArg||process.argv.length!==5)throw Error('Usage: build-proton.mjs PREPARED AUXILIARY NEW_OUTPUT');
 const containerOption=sdkContainerOption(process.env.NEXUS_CONTAINER_ENGINE);
@@ -28,19 +29,20 @@ const build=path.join(prepared,'sdk-build');if(!resume)await fs.mkdir(build);
 const revision=run('git',['rev-parse','--short=8','HEAD'],project,{capture:true}).trim();
 const epoch=run('git',['log','-1','--format=%ct'],project,{capture:true}).trim();
 const name=`nexus-runtime-11.0-experimental-g${revision}`;
+const redist=path.join(build,`redist-${revision}`);
 if(resume){
   verifySdkResumeMakefile(await fs.readFile(path.join(build,'Makefile'),'utf8'),{source,name,sdk:proton.sdk,engine:containerOption.split('=')[1]});
   try{await fs.lstat(output);throw Error('Resume output already exists');}catch(error){if(error.code!=='ENOENT')throw error;}
 }else run(path.join(source,'configure.sh'),[`--build-name=${name}`,containerOption,`--proton-sdk-image=${proton.sdk}`,'--enable-ccache'],build);
 // Each make completes before the next starts. All stages use the same official
 // SDK, build directory and compiler flags, then reuse their compiled objects.
-for(const stage of sdkBuildPlan(build,epoch,jobs)){
+for(const stage of sdkBuildPlan(build,epoch,jobs,redist)){
   console.log(stage.name);
   run('make',stage.args,build,{timeout:stage.timeout});
 }
 await fs.mkdir(output,{recursive:false});
 const runtime=path.join(output,name);
-await fs.cp(path.join(build,'redist'),runtime,{recursive:true,errorOnExist:true,force:false,dereference:false});
+await copySdkRedistribution(redist,runtime);
 const files=path.join(runtime,'files'),components={};
 for(const [arch,hash] of Object.entries(auxiliary.libraries)){
   if(!['x86_64','i386'].includes(arch))throw Error('Unexpected architecture');

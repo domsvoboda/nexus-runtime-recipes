@@ -16,8 +16,9 @@ export function verifySdkResumeMakefile(text, {source, name, sdk, engine}) {
   if (text !== expected) throw Error('Resume requires the exact existing pinned SDK configuration');
 }
 
-export function sdkBuildPlan(build, epoch, jobs = 4) {
+export function sdkBuildPlan(build, epoch, jobs = 4, redist) {
   if (!path.isAbsolute(build) || !/^[0-9]+$/.test(epoch)) throw Error('Invalid SDK build inputs');
+  if (redist !== undefined && (!path.isAbsolute(redist) || path.dirname(redist) !== build || !/^redist-[a-f0-9]{8}$/.test(path.basename(redist)))) throw Error('Invalid isolated redistribution path');
   const count = sdkBuildJobs(jobs);
   const common = [`-j${count}`, `J=${count}`, `SOURCE_DATE_EPOCH=${epoch}`];
   return [
@@ -25,6 +26,6 @@ export function sdkBuildPlan(build, epoch, jobs = 4) {
     // module build can otherwise launch a second WIDL make in the same tree.
     {name: 'Build shared Wine host tools before module submakes', args: [...common, path.join(build, '.wine-x86_64-tools')], timeout: 60*60*1000},
     {name: 'Check xgameruntime in both SDK architectures', args: [...common, 'module=xgameruntime', 'module'], timeout: 60*60*1000},
-    {name: 'Build complete coherent Proton redistribution', args: [...common, 'redist'], timeout: 5*60*60*1000},
+    {name: 'Build complete coherent Proton redistribution', args: [...common, ...(redist ? [`REDIST_DIR=${redist}`] : []), 'redist'], timeout: 5*60*60*1000},
   ];
 }
