@@ -5,7 +5,14 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
-import {sdkBuildPlan} from './sdk-build-plan.mjs';
+import {sdkBuildPlan,sdkContainerOption} from './sdk-build-plan.mjs';
+
+test('rootless Podman is opt-in and CI still defaults to Docker', () => {
+  assert.equal(sdkContainerOption(), '--container-engine=docker');
+  assert.equal(sdkContainerOption('docker'), '--container-engine=docker');
+  assert.equal(sdkContainerOption('podman'), '--container-engine=podman');
+  for (const value of ['', 'sh', '/tmp/other', 'podman --privileged']) assert.throws(() => sdkContainerOption(value));
+});
 
 test('SDK stages enforce the host-tools barrier while retaining parallel compilation and fatal failures', () => {
   const stages = sdkBuildPlan('/isolated/build', '123');

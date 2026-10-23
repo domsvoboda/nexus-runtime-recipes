@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: MIT
 import path from 'node:path';
 
+export function sdkContainerOption(engine = 'docker') {
+  if (!['docker', 'podman'].includes(engine)) throw Error('Unsupported SDK container engine');
+  return `--container-engine=${engine}`;
+}
+
 export function sdkBuildPlan(build, epoch) {
   if (!path.isAbsolute(build) || !/^[0-9]+$/.test(epoch)) throw Error('Invalid SDK build inputs');
   const common = ['-j4', 'J=4', `SOURCE_DATE_EPOCH=${epoch}`];
