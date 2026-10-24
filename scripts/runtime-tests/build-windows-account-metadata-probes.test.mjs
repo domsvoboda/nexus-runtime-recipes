@@ -23,3 +23,7 @@ test('ticket fixture extracts actual production boundaries without extra code',(
  const result=windowsAccountMetadataTicketSource(source);assert.ok(result.includes('REAL_CONTENT'));assert.ok(result.includes('REAL_TICKETS'));assert.ok(!result.includes('OUTSIDE'));
  assert.throws(()=>windowsAccountMetadataTicketSource(source.replace('static HRESULT device_auth(','missing')),/boundaries/);
 });
+test('distribution module explicitly links the registry API dependency',async()=>{
+ const patch=await fs.readFile(new URL('../../assets/xgameruntime-windows-account-imports.patch',import.meta.url),'utf8');
+ assert.match(patch,/^\+IMPORTS\s+= advapi32 bcrypt /m);
+});

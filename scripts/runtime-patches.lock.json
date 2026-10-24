@@ -431,6 +431,10 @@
     {
       "file": "assets/xgameruntime-windows-account-metadata.patch",
       "sha256": "444f6e82b970ccbb5adaab404406ae45f92c2674529cf344c725bd5d4806b3c2"
+    },
+    {
+      "file": "assets/xgameruntime-windows-account-imports.patch",
+      "sha256": "4914902c7768274f346ed116b1e76febf9c878b8bd7fdb8ae299300d67821c82"
     }
   ],
   "expectedProtonSources": {
@@ -450,7 +454,7 @@
     "libs/vkd3d-shader/hlsl.l": "4bcde7ac8e4e43ea848483ca78dce9be0c2bf431398a912f53d339c6581791d5"
   },
   "expectedXgameruntimeSources": {
-    "dlls/xgameruntime/Makefile.in": "703a51c5f2a25deb15543b43cf4136260c06118f20e921db617f183c76a2ea6f",
+    "dlls/xgameruntime/Makefile.in": "90f911f8f1f352c31c0e9a0036b87fdf2ab11627df1d009bc9c1b9456535d086",
     "dlls/xgameruntime/main.c": "73bd90ac379d34543f08f09a4810f2162e321ff50bcc79095d34bbbd19b910db",
     "dlls/xgameruntime/private.h": "6587edc9202381cc8184c4170df3d1e1483792b24f7d1259ae0e0520f1cd7e95",
     "dlls/xgameruntime/xerror.c": "f0dc4b456af5c4cfdcc1036f1dd422848a1ce97abd6cd1722bf654c51927b694",
