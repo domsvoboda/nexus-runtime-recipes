@@ -11,7 +11,16 @@ test('DLC runtime patches are independent, ordered and limited to Store implemen
   const index=lock.patches.findIndex(row=>row.file==='assets/xgameruntime-durable-licenses.patch');
   assert.ok(index>=0);
   assert.deepEqual(lock.patches.slice(index,index+2).map(row=>row.file),['assets/xgameruntime-durable-licenses.patch','assets/xgameruntime-related-discovery.patch']);
-  for(const later of lock.patches.slice(index+2))assert.doesNotMatch(read(later.file),/^diff --git a\/dlls\/xgameruntime\/xstore/m,later.file);
+  for(const later of lock.patches.slice(index+2)) {
+    const text=read(later.file);
+    if(later.file==='assets/xgameruntime-store-identity-diagnostics.patch') {
+      const store=text.split('diff --git a/dlls/xgameruntime/xstore.c')[1].split('diff --git ')[0];
+      const changed=prefix=>store.split('\n').filter(line=>line.startsWith(prefix)&&!line.startsWith(prefix.repeat(3))).map(line=>line.slice(1)).join('\n');
+      const normalize=s=>s.replace(/^.*NEXUS_STORE_META\(.*$/gm,'').replace(/HRESULT hr = entitled_store_create\(user, storeContextHandle\);\s*return hr;/,'return entitled_store_create(user, storeContextHandle);').replace(/\s+/g,'');
+      assert.equal(normalize(changed('+')),normalize(changed('-')),'diagnostics must preserve exact Store operations and return values');
+      assert.doesNotMatch(text,/^diff --git a\/dlls\/xgameruntime\/xstore_/m,'no entitlement/provider changes');
+    } else assert.doesNotMatch(text,/^diff --git a\/dlls\/xgameruntime\/xstore/m,later.file);
+  }
   assert.deepEqual([...licenses.matchAll(/^diff --git a\/(\S+)/gm)].map(match=>match[1]).sort(),
     ['dlls/xgameruntime/xstore.c','dlls/xgameruntime/xstore_addon_license.h','dlls/xgameruntime/xstore_package_license.h']);
   assert.deepEqual([...hints.matchAll(/^diff --git a\/(\S+)/gm)].map(match=>match[1]),['dlls/xgameruntime/xstore_entitled.h']);
