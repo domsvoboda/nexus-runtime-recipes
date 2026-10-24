@@ -87,7 +87,7 @@ diff --git a/dlls/kernelbase/appmodel-identity.h b/dlls/kernelbase/appmodel-iden
 new file mode 100644
 --- /dev/null
 +++ b/dlls/kernelbase/appmodel-identity.h
-@@ -0,0 +1,504 @@
+@@ -0,0 +1,545 @@
 +/* SPDX-License-Identifier: LGPL-2.1-or-later
 + * AppModel identity for unpacked package trees. Metadata describes the image's
 + * package, not a Store account, receipt, entitlement or security capability.
@@ -460,6 +460,47 @@ new file mode 100644
 +
 +static struct package_identity *package_identity;
 +static INIT_ONCE package_identity_once = INIT_ONCE_STATIC_INIT;
++/* Wine's ObjectNameInformation preserves the opened alias. Query the server's
++ * realpath-backed Unix file name instead, then reopen that exact canonical path
++ * through the existing Unix namespace to recover its DOS drive mapping. */
++static DWORD package_image_path( HANDLE file, WCHAR *out )
++{
++    const unsigned int bytes = PACKAGE_PATH_LIMIT * 4;
++    WINE_FILE_UNIX_NAME_INFORMATION *info;
++    WCHAR *name;
++    UNICODE_STRING nt_name;
++    OBJECT_ATTRIBUTES attr;
++    IO_STATUS_BLOCK io;
++    HANDLE canonical;
++    NTSTATUS status;
++    unsigned int i, length;
++    DWORD result = 0;
++
++    if (!(info = package_alloc( sizeof(*info) + bytes ))) return 0;
++    status = NtQueryInformationFile( file, &io, info, sizeof(*info) + bytes, WineFileUnixNameInformation );
++    if (status || !info->Length || info->Length >= bytes || info->Name[0] != '/' ||
++        memchr( info->Name, 0, info->Length )) goto done;
++    if (!(name = package_alloc( PACKAGE_PATH_LIMIT * sizeof(WCHAR) ))) goto done;
++    wcscpy( name, L"\\??\\unix" );
++    length = MultiByteToWideChar( CP_UNIXCP, 0, info->Name, info->Length, name + 8, PACKAGE_PATH_LIMIT - 9 );
++    if (!length) goto free_name;
++    name[length + 8] = 0;
++    for (i = 8; name[i]; i++) if (name[i] == '/') name[i] = '\\';
++    RtlInitUnicodeString( &nt_name, name );
++    InitializeObjectAttributes( &attr, &nt_name, OBJ_CASE_INSENSITIVE, NULL, NULL );
++    status = NtOpenFile( &canonical, FILE_READ_ATTRIBUTES | SYNCHRONIZE, &attr, &io,
++                        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, FILE_SYNCHRONOUS_IO_NONALERT );
++    if (!status)
++    {
++        result = GetFinalPathNameByHandleW( canonical, out, PACKAGE_PATH_LIMIT, FILE_NAME_NORMALIZED | VOLUME_NAME_DOS );
++        NtClose( canonical );
++    }
++free_name:
++    package_free( name );
++done:
++    package_free( info );
++    return result;
++}
 +static BOOL CALLBACK package_initialize( INIT_ONCE *once, void *parameter, void **context )
 +{
 +    struct package_identity *id;
@@ -478,7 +519,7 @@ new file mode 100644
 +     * does not acquire the package of the link's parent directory. */
 +    file = CreateFileW( image, 0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, 0, NULL );
 +    if (file == INVALID_HANDLE_VALUE) goto done;
-+    length = GetFinalPathNameByHandleW( file, candidate, PACKAGE_PATH_LIMIT, FILE_NAME_NORMALIZED | VOLUME_NAME_DOS );
++    length = package_image_path( file, candidate );
 +    CloseHandle( file );
 +    if (!length || length >= PACKAGE_PATH_LIMIT) goto done;
 +    if (!wcsncmp( candidate, L"\\\\?\\", 4 )) memmove( candidate, candidate + 4, (length - 3) * sizeof(WCHAR) );

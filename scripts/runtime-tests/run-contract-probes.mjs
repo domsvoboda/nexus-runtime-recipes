@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Fresh, unauthenticated test prefix only. Stops only its own wineserver.
 import fs from 'node:fs/promises';
+import {runAppmodelAliases} from './run-appmodel-alias-controls.mjs';
 import path from 'node:path';
 import { spawn, execFileSync } from 'node:child_process';
 const [runtimeArg, testsArg, workArg] = process.argv.slice(2);
@@ -68,6 +69,10 @@ try {
   for (const kind of ['concrt-vector','concrt-queue','concrt-yield','auth-metadata','appmodel']) for (const bits of [64,32]) {
     const name=`${kind}-${bits}`;
     const result=await run(wine,[path.join(tests,`${name}-probe.exe`)]);
+    if(kind==='appmodel'&&!result.code&&!result.timedOut){
+      const aliases=await runAppmodelAliases({wine,tests,root,bits,run});
+      result.output+=aliases.output;result.code=aliases.code;result.timedOut=aliases.timedOut;
+    }
     await fs.writeFile(path.join(root,`${name}.log`),result.output,{mode:0o600});
     const summary=result.output.split(/\r?\n/).filter(line=>/^(FAIL |CHECKS )/.test(line));
     results.push({name,code:result.code,timedOut:result.timedOut,summary});
