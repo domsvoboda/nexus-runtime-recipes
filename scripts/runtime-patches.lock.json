@@ -419,6 +419,10 @@
     {
       "file": "assets/xgameruntime-auth-metadata.patch",
       "sha256": "a0e12bfbde4f9d45c768f34fcd40a1cc2849539f3822e057162987a8054078da"
+    },
+    {
+      "file": "assets/wine-appmodel-identity.patch",
+      "sha256": "a2c02013f1c5c0cfb37e53daab96f37ed5eee513e794dc2a9b67dbb313f60c9a"
     }
   ],
   "expectedProtonSources": {
@@ -429,7 +433,10 @@
     "dlls/twinapi.appcore/main.c": "867b24b1a57331b9d28ba1355033e7b3a6f899bcccd6af024ea43c21b24c722e",
     "dlls/twinapi.appcore/appstate-registration.h": "f011a711a77fd91a7d30d63f91adebcc31a2c161130af1160cd2b960f812f016",
     "dlls/concrt140/concrt140.spec": "34fa6cfff6c1163f1581664bde333798cbf93ac05d01c706d27c4c992a6f91d8",
-    "dlls/msvcrt/concurrency.c": "0f37efe888cfcabfcf8a4cb593cc794be7195f90ca24ce71924aae3e9b5f1fcd"
+    "dlls/msvcrt/concurrency.c": "0f37efe888cfcabfcf8a4cb593cc794be7195f90ca24ce71924aae3e9b5f1fcd",
+    "dlls/kernelbase/version.c": "1771dc5e129dd426b1bcc220666bf097cfcea75439a121c85009933e374450be",
+    "dlls/kernelbase/Makefile.in": "5c0c4e27de72c067384b99955a46d146d8737a91ee7ba881470659baaa1dafbe",
+    "dlls/kernelbase/appmodel-identity.h": "ca131eba7923592e6e6be7ca51f7aa2a8bf7b7809bbedcb0613a2fd21167989d"
   },
   "expectedVkd3dSources": {
     "libs/vkd3d-shader/hlsl.l": "4bcde7ac8e4e43ea848483ca78dce9be0c2bf431398a912f53d339c6581791d5"
