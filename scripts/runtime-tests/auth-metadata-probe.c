@@ -17,6 +17,8 @@ typedef struct XUser {
     LONG initDone;
     HRESULT initResult;
     int IUser_iface;
+    UINT64 xuid;
+    char xbox_msa_id[17], store_msa_id[17];
 } *XUserHandle;
 typedef int IXThreadingImpl;
 typedef int XAsyncBlock;
@@ -49,12 +51,13 @@ static HRESULT load_endpoints(XUserHandle user, BYTE *buffer, SIZE_T size)
     CHECK("parse inputs unchanged", user && buffer && size == 16);
     return stage();
 }
-static HRESULT get_rps_tickets(BOOLEAN ui, char **user, char **device)
+static HRESULT get_rps_tickets(BOOLEAN ui, char **user, char **device, char xbox_id[17], char store_id[17])
 {
     HRESULT hr;
     CHECK("UI option preserved", ui == XUserAddOptions_AddDefaultUserAllowingUI);
     if (FAILED(hr = stage())) return hr;
     *user = strdup("SYNTHETIC_USER_SECRET"); *device = strdup("SYNTHETIC_DEVICE_TICKET");
+    strcpy(xbox_id, "0123456789abcdef"); strcpy(store_id, "fedcba9876543210");
     return S_OK;
 }
 static HRESULT device_auth(XUserHandle user, const char *ticket, char **token)
@@ -69,7 +72,15 @@ static HRESULT sisu_auth(XUserHandle user, const char *ticket, const char *token
     HRESULT hr;
     CHECK("SISU inputs preserved", user && !strcmp(ticket,"SYNTHETIC_USER_SECRET") && !strcmp(token,"SYNTHETIC_DEVICE_SECRET"));
     if (FAILED(hr = stage())) return hr;
+    user->xuid = 123;
     *auth = calloc(16,sizeof(WCHAR)); wcscpy(*auth,L"SECRET_AUTH"); return S_OK;
+}
+static HRESULT account_metadata_publish(UINT64 xuid, const char *xbox, const char *store)
+{
+    CHECK("metadata only after authentication", xuid == 123);
+    CHECK("metadata preserves distinct principals", !strcmp(xbox,"0123456789abcdef") && !strcmp(store,"fedcba9876543210"));
+    /* Failure of optional registry metadata must not fail sign-in. */
+    return E_ACCESSDENIED;
 }
 static void set_signed_in_user(struct XUser *user) { CHECK("sign in only initialized user", user->initDone && SUCCEEDED(user->initResult)); ++signed_in; }
 static void probe_sleep(DWORD ms) { CHECK("retry delay unchanged", ms == 3000); ++delays; step = 0; }

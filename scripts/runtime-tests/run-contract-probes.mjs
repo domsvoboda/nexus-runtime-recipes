@@ -66,7 +66,7 @@ try {
       if (finish.code || finish.timedOut) throw new Error(`File-provider shutdown failed; see ${root}`);
     }
   }
-  for (const kind of ['concrt-vector','concrt-queue','concrt-yield','auth-metadata','appmodel']) for (const bits of [64,32]) {
+  for (const kind of ['concrt-vector','concrt-queue','concrt-yield','auth-metadata','appmodel','windows-account-metadata']) for (const bits of [64,32]) {
     const name=`${kind}-${bits}`;
     const result=await run(wine,[path.join(tests,`${name}-probe.exe`)]);
     if(kind==='appmodel'&&!result.code&&!result.timedOut){

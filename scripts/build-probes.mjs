@@ -12,6 +12,7 @@ import {buildUserPrivilegeProbe} from './runtime-tests/build-user-privilege-prob
 import {buildConcrtProbes} from './runtime-tests/build-concrt-probes.mjs';
 import {buildAppmodelProbes} from './runtime-tests/build-appmodel-probes.mjs';
 import {buildAuthMetadataProbes} from './runtime-tests/build-auth-metadata-probes.mjs';
+import {buildWindowsAccountMetadataProbes} from './runtime-tests/build-windows-account-metadata-probes.mjs';
 const [preparedArg,auxArg]=process.argv.slice(2);
 if(!preparedArg||!auxArg||process.argv.length!==4)throw Error('Usage: build-probes.mjs PREPARED AUXILIARY');
 const work=await fs.realpath(preparedArg),source=path.join(work,'proton/wine');
@@ -50,6 +51,7 @@ buildUserAudioProbe({source,build,tests,project},run);
 buildConcrtProbes({tests,project},run);
 buildAppmodelProbes({tests,project},run);
 await buildAuthMetadataProbes({source,tests,project},run);
+await buildWindowsAccountMetadataProbes({source,tests,project},run);
 gcc('winrt-json-probe.c',path.join(tests,'winrt-json-probe.exe'),['-lruntimeobject'],['-I',path.join(build,'include'),'-I',path.join(source,'include')]);
 console.log('Built account-free fixtures. Host probe DLLs are not distribution components.');
 
