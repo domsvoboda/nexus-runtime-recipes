@@ -11,6 +11,10 @@ The current line targets Linux x86_64. Experimental builds are not stable compat
 
 Microsoft Store and Game Pass games still require a valid account and entitlement. Unsupported game APIs, DRM and anti-cheat are not bypassed. Cloud-save support is partial; forced termination is not a successful cloud sync.
 
+## Current usage
+
+This repository is an independent experimental Proton build recipe. The current Standard and CachyOS runtime families use the standalone C++ XGameRuntime SDK pipeline and their own source locks under `nexus/`. The C XGameRuntime patch series and lock in this repository are intentionally a separate pin; they are not a family runtime source lock and are not consumed by that pipeline.
+
 ## Building
 
 Requirements: Linux x86_64, Git, Node.js 22 or newer, Docker, Make, CMake, GNU build tools and MinGW-w64. Proton is built in its pinned Steam Runtime SDK container. The auxiliary build uses Ubuntu 22.04 to keep its native helper and media libraries compatible with glibc 2.35.
