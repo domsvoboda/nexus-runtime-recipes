@@ -1,6 +1,6 @@
 # Nexus Runtime
 
-An independent, experimental Proton runtime for [Xodus Nexus](https://github.com/domsvoboda/xodus-nexus), built from pinned [Valve Proton Experimental](https://github.com/ValveSoftware/Proton/tree/experimental_11.0) sources with Xodus and Nexus compatibility patches.
+An independent, experimental Proton runtime for [Nexus Launcher](https://github.com/domsvoboda/nexus-launcher), built from pinned [Valve Proton Experimental](https://github.com/ValveSoftware/Proton/tree/experimental_11.0) sources with Xodus and Nexus compatibility patches.
 
 > [!CAUTION]
 > This is not an official Xodus or Valve project. Please report problems with Nexus Runtime in this repository, not to the upstream Xodus developers. A problem here may not exist in upstream Xodus or Proton.
