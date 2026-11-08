@@ -3,6 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import {project,run,readJson,verifyRecipe,sha256} from './recipe.mjs';
 import {sdkBuildPlan,sdkContainerOption,sdkBuildJobs,verifySdkResumeMakefile} from './sdk-build-plan.mjs';
+import {copySdkRedistribution} from './runtime-copy.mjs';
 const [preparedArg,auxArg,outputArg]=process.argv.slice(2);
 if(!preparedArg||!auxArg||!outputArg||process.argv.length!==5)throw Error('Usage: build-proton.mjs PREPARED AUXILIARY NEW_OUTPUT');
 const containerOption=sdkContainerOption(process.env.NEXUS_CONTAINER_ENGINE);
@@ -28,19 +29,20 @@ const build=path.join(prepared,'sdk-build');if(!resume)await fs.mkdir(build);
 const revision=run('git',['rev-parse','--short=8','HEAD'],project,{capture:true}).trim();
 const epoch=run('git',['log','-1','--format=%ct'],project,{capture:true}).trim();
 const name=`nexus-runtime-11.0-experimental-g${revision}`;
+const redist=path.join(build,`redist-${revision}`);
 if(resume){
   verifySdkResumeMakefile(await fs.readFile(path.join(build,'Makefile'),'utf8'),{source,name,sdk:proton.sdk,engine:containerOption.split('=')[1]});
   try{await fs.lstat(output);throw Error('Resume output already exists');}catch(error){if(error.code!=='ENOENT')throw error;}
 }else run(path.join(source,'configure.sh'),[`--build-name=${name}`,containerOption,`--proton-sdk-image=${proton.sdk}`,'--enable-ccache'],build);
 // Each make completes before the next starts. All stages use the same official
 // SDK, build directory and compiler flags, then reuse their compiled objects.
-for(const stage of sdkBuildPlan(build,epoch,jobs)){
+for(const stage of sdkBuildPlan(build,epoch,jobs,redist)){
   console.log(stage.name);
   run('make',stage.args,build,{timeout:stage.timeout});
 }
 await fs.mkdir(output,{recursive:false});
 const runtime=path.join(output,name);
-await fs.cp(path.join(build,'redist'),runtime,{recursive:true,errorOnExist:true,force:false,dereference:false});
+await copySdkRedistribution(redist,runtime);
 const files=path.join(runtime,'files'),components={};
 for(const [arch,hash] of Object.entries(auxiliary.libraries)){
   if(!['x86_64','i386'].includes(arch))throw Error('Unexpected architecture');
@@ -57,7 +59,7 @@ for(const name of ['PlayFabGameSave.dll','gaming-services-version.exe','wine-lau
     await fs.writeFile(path.join(files,'bin/wine'),bytes,{flag:'wx',mode:0o755});
   }else await fs.writeFile(path.join(compat,name),bytes,{flag:'wx'});
 }
-for(const name of ['xgameruntime.dll','winhttp.dll','mscoree.dll','windows.web.dll','twinapi.appcore.dll','libnghttp2.dll','libvkd3d-shader-1.dll','d3d8.dll','d3d9.dll','d3d10core.dll','d3d11.dll','dxgi.dll']){
+for(const name of ['kernelbase.dll','xgameruntime.dll','winhttp.dll','mscoree.dll','windows.web.dll','twinapi.appcore.dll','libnghttp2.dll','libvkd3d-shader-1.dll','d3d8.dll','d3d9.dll','d3d10core.dll','d3d11.dll','dxgi.dll']){
   const sub=name==='libvkd3d-shader-1.dll'?'vkd3d':['d3d8.dll','d3d9.dll','d3d10core.dll','d3d11.dll','dxgi.dll'].includes(name)?'wine/dxvk':'wine';
   const file=path.join(files,'lib',sub,'x86_64-windows',name),bytes=await fs.readFile(file);
   components[name]=sha256(bytes);
@@ -76,8 +78,8 @@ for(const [soname,item] of Object.entries(media.libraries)){
   if(soname!==item.filename)await fs.symlink(item.filename,path.join(libdir,soname));
 }
 const notices=path.join(files,'share/doc/nexus-runtime');await fs.mkdir(notices,{recursive:true});
-for(const [name,sourceFile] of [['runtime-compat-LICENSE',path.join(project,'LICENSE')],['NOTICE',path.join(project,'NOTICE')],['nghttp2-LICENSE',path.join(aux,'components/nghttp2-LICENSE')],['Wine-LICENSE',path.join(wine,'COPYING.LIB')],['xgameruntime-LICENSE',path.join(wine,'dlls/xgameruntime/LICENSE')],['DXVK-LICENSE',path.join(source,'dxvk/LICENSE')],['VKD3D-LICENSE',path.join(source,'vkd3d/COPYING')],['FFmpeg-COPYING.LGPLv2.1',path.join(aux,'media/ffmpeg-'+media.version+'/COPYING.LGPLv2.1')]])await fs.copyFile(sourceFile,path.join(notices,name));
-const metadata={schema:1,status:'experimental',description:'Independent Nexus runtime built from pinned official Proton Experimental sources.',baseProtonCommit:proton.proton.commit,patchState:run('git',['rev-parse','HEAD'],project,{capture:true}).trim(),sourceLockSha256:proof.sourceLockSha256,requiresBackendVersion:proton.requiresBackendVersion,components,runtimeCompatibility:auxiliary.compatibility,features:['cloud-saves-pr28','xodus-tcp-bridge-v1','package-locale','xuser-contract-v1','wine-winhttp-http2-v1','nghttp2-v1','winrt-json-v1','xasync-provider-contract-v1','xtaskqueue-lifecycle-v1','playfab-package-save-folder-v1','xstore-entitlements-v1','xpackage-content-v1','xstore-package-license-v1','hlsl-state-keywords-v1','appstate-registration-v1','appconstrained-registration-v1','xtaskqueue-repeat-termination-v1','xgame-relaunch-current-user-v1','dxvk-constant-compare-v1']};
+for(const [name,sourceFile] of [['runtime-compat-LICENSE',path.join(project,'LICENSE')],['NOTICE',path.join(project,'NOTICE')],['nghttp2-LICENSE',path.join(aux,'components/nghttp2-LICENSE')],['Wine-LICENSE',path.join(wine,'COPYING.LIB')],['TomCrypt-LICENSE',path.join(wine,'libs/tomcrypt/LICENSE')],['xgameruntime-LICENSE',path.join(wine,'dlls/xgameruntime/LICENSE')],['DXVK-LICENSE',path.join(source,'dxvk/LICENSE')],['VKD3D-LICENSE',path.join(source,'vkd3d/COPYING')],['FFmpeg-COPYING.LGPLv2.1',path.join(aux,'media/ffmpeg-'+media.version+'/COPYING.LGPLv2.1')]])await fs.copyFile(sourceFile,path.join(notices,name));
+const metadata={schema:1,status:'experimental',description:'Independent Nexus runtime built from pinned official Proton Experimental sources.',baseProtonCommit:proton.proton.commit,patchState:run('git',['rev-parse','HEAD'],project,{capture:true}).trim(),sourceLockSha256:proof.sourceLockSha256,requiresBackendVersion:proton.requiresBackendVersion,components,runtimeCompatibility:auxiliary.compatibility,features:['cloud-saves-pr28','xodus-tcp-bridge-v1','package-locale','xuser-contract-v1','xuser-windows-account-metadata-v1','wine-winhttp-http2-v1','nghttp2-v1','winrt-json-v1','xasync-provider-contract-v1','xtaskqueue-lifecycle-v1','playfab-package-save-folder-v1','xstore-entitlements-v1','xstore-durable-license-v1','xstore-related-discovery-v1','xpackage-content-v1','xstore-package-license-v1','hlsl-state-keywords-v1','appmodel-package-identity-v1','appstate-registration-v1','appconstrained-registration-v1','xtaskqueue-repeat-termination-v1','xgame-relaunch-current-user-v1','dxvk-constant-compare-v1']};
 metadata.baseWineSha256=sha256(await fs.readFile(path.join(files,'bin/wine.nexus-original')));
 await fs.writeFile(path.join(runtime,'XODUS_NEXUS_PATCH.json'),JSON.stringify(metadata,null,2)+'\n',{flag:'wx'});
 await fs.writeFile(path.join(output,'built.json'),JSON.stringify({schema:1,name,runtime,metadata,proton,prepared,aux},null,2)+'\n',{flag:'wx'});

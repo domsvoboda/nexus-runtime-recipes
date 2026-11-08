@@ -15,7 +15,15 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: npm test
+      - name: Select source-check mode
+        id: mode
+        run: node scripts/source-check-plan.mjs --detect-mode >> "$GITHUB_OUTPUT"
+      - name: Full source checks
+        if: steps.mode.outputs.mode == 'full'
+        run: npm test
+      - name: Noncompiling source checks with honest omission report
+        if: steps.mode.outputs.mode == 'source-only'
+        run: node scripts/source-check-plan.mjs --mode source-only
       - run: npm run check
       - name: Check complete pinned source preparation
         run: node scripts/prepare-runtime.mjs --work "$PWD/work/source"

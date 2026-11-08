@@ -388,22 +388,75 @@
     {
       "file": "assets/wine-sdk-c-declarations.patch",
       "sha256": "1a34ebd172fae1a451d488c1ea3f06d362b41addfbe2fad079f1d9f3843b0557"
+    },
+    {
+      "file": "assets/xgameruntime-durable-licenses.patch",
+      "sha256": "71e91beb7fbacacb5c3bbc3fad7830fc3663f704dec110a9e1712305805ec5a2"
+    },
+    {
+      "file": "assets/xgameruntime-related-discovery.patch",
+      "sha256": "72a49cea73a0dd18256e0712fee857c0ae631cea4e8a88d7f831782e62f4f7c8"
+    },
+    {
+      "file": "assets/upstream/wine-de43f543-concrt.patch",
+      "sha256": "52e0f99cdc844cdbeb0411e7c115198ba15f76b3f8effc80ef602be735bf2286",
+      "upstream": {
+        "repository": "wine-mirror/wine",
+        "commit": "de43f5434fec4fa44a1d1aad0445bae4a606a5a9",
+        "paths": [
+          "dlls/concrt140/details.c"
+        ]
+      }
+    },
+    {
+      "file": "assets/concrt-queue-iterator.patch",
+      "sha256": "e23749fd834f9870af947a12a4158dd752a68aedeffb86c8aa220c87cd252621"
+    },
+    {
+      "file": "assets/concrt-underlying-yield.patch",
+      "sha256": "cb84c08a7d6d6b6bb0cba6fb7e6a9b6d90f18a09436f7e42fe4f8e202034cd9b"
+    },
+    {
+      "file": "assets/xgameruntime-auth-metadata.patch",
+      "sha256": "a0e12bfbde4f9d45c768f34fcd40a1cc2849539f3822e057162987a8054078da"
+    },
+    {
+      "file": "assets/wine-appmodel-identity.patch",
+      "sha256": "9e1e94b9832e2d9f0fb836d673646af153408f4c817b3904d4e3ac7d121ef98b"
+    },
+    {
+      "file": "assets/xgameruntime-store-identity-diagnostics.patch",
+      "sha256": "d093d76fded97fa92d1f9ea3354392a580f515a9341a442df52a9752172dc70a"
+    },
+    {
+      "file": "assets/xgameruntime-windows-account-metadata.patch",
+      "sha256": "444f6e82b970ccbb5adaab404406ae45f92c2674529cf344c725bd5d4806b3c2"
+    },
+    {
+      "file": "assets/xgameruntime-windows-account-imports.patch",
+      "sha256": "4914902c7768274f346ed116b1e76febf9c878b8bd7fdb8ae299300d67821c82"
     }
   ],
   "expectedProtonSources": {
     "make/rules-wine-tools.mk": "7718382f90218a3366a7d2feafa05ccec5fd003c80281b809525418793e72317"
   },
   "expectedWineSources": {
+    "dlls/concrt140/details.c": "257b2e8971156e8f9e06137a69e7590bbd5816ac9512cd034d255c07b55cd480",
     "dlls/twinapi.appcore/main.c": "867b24b1a57331b9d28ba1355033e7b3a6f899bcccd6af024ea43c21b24c722e",
-    "dlls/twinapi.appcore/appstate-registration.h": "f011a711a77fd91a7d30d63f91adebcc31a2c161130af1160cd2b960f812f016"
+    "dlls/twinapi.appcore/appstate-registration.h": "f011a711a77fd91a7d30d63f91adebcc31a2c161130af1160cd2b960f812f016",
+    "dlls/concrt140/concrt140.spec": "34fa6cfff6c1163f1581664bde333798cbf93ac05d01c706d27c4c992a6f91d8",
+    "dlls/msvcrt/concurrency.c": "0f37efe888cfcabfcf8a4cb593cc794be7195f90ca24ce71924aae3e9b5f1fcd",
+    "dlls/kernelbase/version.c": "1771dc5e129dd426b1bcc220666bf097cfcea75439a121c85009933e374450be",
+    "dlls/kernelbase/Makefile.in": "5c0c4e27de72c067384b99955a46d146d8737a91ee7ba881470659baaa1dafbe",
+    "dlls/kernelbase/appmodel-identity.h": "e9928e819bca205027771640c71d0746c8d0e525a221202f746e2d26fd4f6156"
   },
   "expectedVkd3dSources": {
     "libs/vkd3d-shader/hlsl.l": "4bcde7ac8e4e43ea848483ca78dce9be0c2bf431398a912f53d339c6581791d5"
   },
   "expectedXgameruntimeSources": {
-    "dlls/xgameruntime/Makefile.in": "703a51c5f2a25deb15543b43cf4136260c06118f20e921db617f183c76a2ea6f",
-    "dlls/xgameruntime/main.c": "aa854f8dab809f887d204acd16042ad571dbdb5c99720401aada12a003033699",
-    "dlls/xgameruntime/private.h": "5b5491ddd0be05807c8cac13bff38d8b0f2e6f87c82521202f34bcd7a684da31",
+    "dlls/xgameruntime/Makefile.in": "90f911f8f1f352c31c0e9a0036b87fdf2ab11627df1d009bc9c1b9456535d086",
+    "dlls/xgameruntime/main.c": "73bd90ac379d34543f08f09a4810f2162e321ff50bcc79095d34bbbd19b910db",
+    "dlls/xgameruntime/private.h": "6587edc9202381cc8184c4170df3d1e1483792b24f7d1259ae0e0520f1cd7e95",
     "dlls/xgameruntime/xerror.c": "f0dc4b456af5c4cfdcc1036f1dd422848a1ce97abd6cd1722bf654c51927b694",
     "dlls/xgameruntime/xgame.c": "47ae0b3a0453a86dd2a315c5963437280dff1296e58521793e8e2cc8dcc32cba",
     "dlls/xgameruntime/xgameactivation.c": "48a729040d7be7aac3e28b27aa06f8285bcef3f27767fa79ddfbe33c7b629dbc",
@@ -418,14 +471,15 @@
     "dlls/xgameruntime/xpackage_content.h": "d3addb58053e44848bfb2be29d3568019196568ad98b605544b3506c03ed1c2f",
     "dlls/xgameruntime/xpackage.idl": "189df1454b50e4cdf874592c6c5309985419c0ec20c5bf3dc69dba4bb62accde",
     "dlls/xgameruntime/xpersistentlocalstorage.c": "48111212dcfe4ef328fa482dc8b426ef853b7c961d575aefeaa3b559788809b2",
-    "dlls/xgameruntime/xstore.c": "323183e6c7b6f627888dcd6c7d9be90bc1bf43cb8677b3be4fb06a1539947a5b",
-    "dlls/xgameruntime/xstore_entitled.h": "cae87da7943d625664c94b7179b47f1eedf2cd3dfd3192f99bd1a252b273e289",
+    "dlls/xgameruntime/xstore.c": "b46968281cac5426f3083bd9ebb854ce560a579ca1585bed9757a534132e8fcf",
+    "dlls/xgameruntime/xstore_entitled.h": "18434ab342495a375885937258d3882d32490fefba82d64f4032f812d8450dc2",
     "dlls/xgameruntime/xstore_receipts.h": "637cc315d72bb1ad20ce5529dfb6be4ef01ae8fd08a321aa5e852c1557c1d280",
-    "dlls/xgameruntime/xstore_package_license.h": "678f109e0a0af3f5e87951666f7c891af3999658f8698eb8855387ea355e2a31",
+    "dlls/xgameruntime/xstore_package_license.h": "1ee179a5ca94baf8d9922f6b9116817a7fc34801bbf0c460d92d3ce2b446eefc",
+    "dlls/xgameruntime/xstore_addon_license.h": "66bd7dbd00861048f92cb7da6f9508b3f0e11e338682b40830158e84ba3b79f1",
     "dlls/xgameruntime/xsystem.c": "a3c151c5d05875b68f49c534aae9d40e3f15ec800af0f85e159ede7c95401880",
     "dlls/xgameruntime/xsystemanalytics.c": "189e99c83273b429325ecefa2b9246c45863c22f0c4006a791ec57b8f7b9d384",
     "dlls/xgameruntime/xthreading.c": "05241a7c865b1cc165a159a173eaae53bd01be074b27361139fadc20418ac10c",
-    "dlls/xgameruntime/xuser.c": "603dc6efbb585544c4f1c1f117848268a09868a083758e4db131e2d19f2580db",
+    "dlls/xgameruntime/xuser.c": "239f61f8ddb630e77afd16d90adfec37acc72028a4211e5e39167b020591b8a9",
     "dlls/xgameruntime/xuser_audio.h": "66ede45d4fc798612c8dc939b8903bccb0a023228a6618636fd6ed76ca8ed8a7",
     "dlls/xgameruntime/xuser_device_events.h": "ed3b6ac25510b7bff288e36859781811e7de3985d418159ce25a2b00bc6d35cb",
     "dlls/xgameruntime/xuser_privilege.h": "4aa9a2736b59feb4d86cb86d95d99119ab1ccb6ab07b6b9a53c7da61acd0a77b",
@@ -435,7 +489,9 @@
     "dlls/xgameruntime/xgamesavefiles.h": "b40971d406b3c1e230260e682ad9ce2aa96b029d00c7a237f79ea699ba20da0d",
     "dlls/xgameruntime/xstore_game_license.h": "8bcc2fd256c3e08ba59d9d5211ffb6f70e01a95cef6d0272ddf61bb8d284bffb",
     "dlls/xgameruntime/xpackage_chunks.h": "7e62bdb9ea50c36d12e3dd208debf9b5fc75bd266f07141475bbad9afaaf11e6",
-    "dlls/xgameruntime/xpackage_monitors.h": "0ee4bf63bee0c907e395fa2bf347cf2634dd9960c7f08e8e84d92a6be1b8b86e"
+    "dlls/xgameruntime/xpackage_monitors.h": "0ee4bf63bee0c907e395fa2bf347cf2634dd9960c7f08e8e84d92a6be1b8b86e",
+    "dlls/xgameruntime/store-identity-diagnostics.h": "a6d37544305824122e94d1d1952a48c42a6562205a5cdf22dd4bb117e8d17462",
+    "dlls/xgameruntime/windows-account-metadata.h": "5544b2319298a429fa8b018ae502114941c8cb12301f5cf1d604266f35905bbf"
   },
   "runtimeCompatibilitySources": {
     "scripts/runtime-compat/build.mjs": "6578126fe4fb080c99196b0dba4d49f8cf31d43377001ff57b8480f4eaa1f9fb",
@@ -455,9 +511,10 @@
     "Application-specific device-ID queries return the documented unavailable-ID sentinel, not a unique platform identifier or hardware-attestation token.",
     "PlayFab in-process fallback supports the verified x64 40-export SDK ABI; missing device/conflict/failure UI and final upload before normal SDK cleanup are provided. Forced process termination is not a successful cloud sync. Default-on Gaming Services version metadata is not a Microsoft service implementation.",
     "Store update queries support the verified current-game no-update case; DLC, mandatory updates and downloads remain unsupported",
-    "Entitled-product queries verify fresh signed Store receipts for the current game and config-declared related products, with public catalog metadata. Online access is required; other Store queries, purchase/download APIs and consumable quantities are not supplied by this increment.",
+    "Entitled-product queries verify fresh signed Store receipts for the current game and known related products, with public catalog metadata. A supporting launcher supplies bounded scoped discovery hints; hints and installed files do not grant rights. Online access is required; catalog listing, purchase/download APIs and consumable quantities remain unsupported.",
     "Installed Content discovery supports extracted PC packages with matching config/Appx identity, dependency, allowed parent and layout/file presence. It checks nearby installation directories and optional XODUS_CONTENT_ROOTS paths, not an OS-wide registry or full payload integrity. PublisherContent and content mounting remain unsupported; disk metadata never grants a license.",
-    "Package license acquire/result/valid/close requires fresh verified signed proof for an installed current/related nontrial Durable package. Handles are bounded by proof/SKU expiry; lost callbacks report expiry only, not account, network or concurrency revocations. Other acquisition variants and mounting remain unsupported.",
+    "Package and Durable license acquire/result/valid/close require fresh verified signed proof for the exact nontrial Durable product. Package acquisition additionally requires installed package identity. Handles are bounded by proof/SKU expiry; lost callbacks report expiry only, not account, network or concurrency revocations. Mounting and offline licensing remain unsupported.",
+    "Add-on license enumeration returns verified package-free Durable SKUs only with a verified digital current-game license. Results expire with the signed proof or game/add-on SKU, whichever comes first. Discovery uses known related product IDs; catalog listings and purchase APIs remain unsupported.",
     "Game-license change callbacks support registration, queue dispatch and safe unregistration/close. Events reflect changed verified current-title SKU receipts observed during entitlement refresh, not an OS purchase/revocation feed; initial, failed, missing or filtered observations emit no event.",
     "Incomplete XAsync cancellation/resource reclamation",
     "Partial package/event/privilege APIs are not complete GDK implementations",

@@ -1,0 +1,57 @@
+diff --git a/dlls/xgameruntime/xstore_entitled.h b/dlls/xgameruntime/xstore_entitled.h
+index e7cb549..bbf78c4 100644
+--- a/dlls/xgameruntime/xstore_entitled.h
++++ b/dlls/xgameruntime/xstore_entitled.h
+@@ -27,10 +27,42 @@ static BOOL entitled_sku_id( const char *text )
+     return TRUE;
+ }
+ 
++/* Discovery hints do not grant rights. Each candidate still needs a verified
++ * signed receipt tied to the current ParentProductId by the licensing service.
++ * Invalid/oversized hints are ignored atomically, keeping the manifest intact. */
++static BOOL entitled_merge_hint( char ids[256][13], UINT32 *count, const char *hint )
++{
++    char merged[256][13], product[13];
++    SIZE_T length, offset = 0;
++    UINT32 total = *count, i;
++    if (!hint || !*hint) return TRUE;
++    length = strlen(hint);
++    if (total > 256 || length > 256 * 13 - 1) return FALSE;
++    memcpy(merged, ids, total * 13);
++    while (offset < length)
++    {
++        if (length - offset < 12) return FALSE;
++        memcpy(product, hint + offset, 12); product[12] = 0;
++        if (!entitled_id(product)) return FALSE;
++        offset += 12;
++        if (offset < length && (hint[offset++] != ',' || offset == length)) return FALSE;
++        for (i = 0; i < total && strcmp(merged[i], product); i++);
++        if (i == total)
++        {
++            if (total == 256) return FALSE;
++            memcpy(merged[total++], product, 13);
++        }
++    }
++    memcpy(ids, merged, total * 13); *count = total;
++    return TRUE;
++}
++
+ HRESULT xstore_configure( struct _xmlNode *root )
+ {
+     xmlNodePtr node, child;
+     char ids[256][13];
++    char hint[256 * 13];
++    DWORD hint_size;
+     UINT32 count = 0, i;
+     for (node = root->children; node; node = node->next)
+     {
+@@ -50,6 +82,9 @@ HRESULT xstore_configure( struct _xmlNode *root )
+             xmlFree(value);
+         }
+     }
++    hint_size = GetEnvironmentVariableA("NEXUS_RELATED_PRODUCT_IDS", hint, sizeof(hint));
++    if (hint_size && (hint_size >= sizeof(hint) || !entitled_merge_hint(ids, &count, hint)))
++        WARN("Ignoring invalid related-product discovery hints.\n");
+     memcpy(entitled_related, ids, count * 13);
+     entitled_related_count = count;
+     return S_OK;

@@ -1,0 +1,10 @@
+diff --git a/dlls/xgameruntime/Makefile.in b/dlls/xgameruntime/Makefile.in
+--- a/dlls/xgameruntime/Makefile.in
++++ b/dlls/xgameruntime/Makefile.in
+@@ -1,5 +1,5 @@
+ MODULE    = xgameruntime.dll
+ EXTRAINCL = $(XML2_PE_CFLAGS)
+-IMPORTS   = bcrypt combase crypt32 shlwapi winhttp wininet ws2_32 $(XML2_PE_LIBS)
++IMPORTS   = advapi32 bcrypt combase crypt32 shlwapi winhttp wininet ws2_32 $(XML2_PE_LIBS)
+ 
+ SOURCES = \

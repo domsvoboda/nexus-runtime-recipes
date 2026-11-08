@@ -43,6 +43,11 @@ test('SDK plan rejects relative directories and invalid epochs', () => {
   for (const [directory, epoch] of [['relative','1'],['/build',''],['/build','now'],['/build','1 other=bad']])
     assert.throws(() => sdkBuildPlan(directory, epoch));
 });
+test('revision-scoped staging never overwrites a previous redistribution',()=>{
+  const stages=sdkBuildPlan('/build','1',4,'/build/redist-1234abcd');
+  assert.deepEqual(stages[2].args.slice(-2),['REDIST_DIR=/build/redist-1234abcd','redist']);
+  for(const bad of ['/tmp/redist-1234abcd','/build/redist','/build/../redist-1234abcd','relative','/build/redist-1234abcd other=value'])assert.throws(()=>sdkBuildPlan('/build','1',4,bad));
+});
 test('actual parallel make reader/writer race fails before the barrier and passes with the ordered plan', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nexus-sdk-order-'));
   const fixture = directory => {

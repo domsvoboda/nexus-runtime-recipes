@@ -1,6 +1,6 @@
 # Nexus Runtime
 
-An independent, experimental Proton runtime for [Xodus Nexus](https://github.com/domsvoboda/xodus-nexus), built from pinned [Valve Proton Experimental](https://github.com/ValveSoftware/Proton/tree/experimental_11.0) sources with Xodus and Nexus compatibility patches.
+An independent, experimental Proton runtime for [Nexus Launcher](https://github.com/domsvoboda/nexus-launcher), built from pinned [Valve Proton Experimental](https://github.com/ValveSoftware/Proton/tree/experimental_11.0) sources with Xodus and Nexus compatibility patches.
 
 > [!CAUTION]
 > This is not an official Xodus or Valve project. Please report problems with Nexus Runtime in this repository, not to the upstream Xodus developers. A problem here may not exist in upstream Xodus or Proton.
@@ -10,6 +10,10 @@ An independent, experimental Proton runtime for [Xodus Nexus](https://github.com
 The current line targets Linux x86_64. Experimental builds are not stable compatibility guarantees and do not replace the launcher's default runtime automatically.
 
 Microsoft Store and Game Pass games still require a valid account and entitlement. Unsupported game APIs, DRM and anti-cheat are not bypassed. Cloud-save support is partial; forced termination is not a successful cloud sync.
+
+## Current usage
+
+This repository is an independent experimental Proton build recipe. The current Standard and CachyOS runtime families use the standalone C++ XGameRuntime SDK pipeline and their own source locks under `nexus/`. The C XGameRuntime patch series and lock in this repository are intentionally a separate pin; they are not a family runtime source lock and are not consumed by that pipeline.
 
 ## Building
 

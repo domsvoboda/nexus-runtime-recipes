@@ -25,7 +25,7 @@ test('candidate packaging requires exact validation, never infers stable or game
 });
 test('coherent SDK output is copied, never host-built Wine probe DLLs',()=>{
   const script=load('scripts/build-proton.mjs');
-  assert.match(script,/path\.join\(build,'redist'\)/);assert.doesNotMatch(script,/probe-build/);
+  assert.match(script,/copySdkRedistribution\(redist,runtime\)/);assert.match(script,/path\.join\(build,`redist-\$\{revision\}`\)/);assert.doesNotMatch(script,/probe-build/);
   const probe=load('scripts/build-probes.mjs');assert.match(probe,/Host-built executables are test fixtures only/);
 });
 test('the official SDK module preflight precedes redist without relaxing compiler flags',()=>{
@@ -35,7 +35,7 @@ test('the official SDK module preflight precedes redist without relaxing compile
   assert.deepEqual(stages[1].args.slice(-2),['module=xgameruntime','module']);
   assert.equal(stages[2].args.at(-1),'redist');
   assert.match(script,/const jobs=sdkBuildJobs\(process.env.NEXUS_BUILD_JOBS\)/);
-  assert.match(script,/for\(const stage of sdkBuildPlan\(build,epoch,jobs\)\)/);
+  assert.match(script,/for\(const stage of sdkBuildPlan\(build,epoch,jobs,redist\)\)/);
   assert.match(script,/run\('make',stage.args,build,\{timeout:stage.timeout\}\)/);
   assert.doesNotMatch(script,/-Wno-|--disable-werror|CFLAGS=/);
   assert.match(script,/proton-sdk-image=\$\{proton.sdk\}/);

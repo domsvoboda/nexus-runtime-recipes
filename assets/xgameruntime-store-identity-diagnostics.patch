@@ -1,0 +1,250 @@
+diff --git a/dlls/xgameruntime/main.c b/dlls/xgameruntime/main.c
+--- a/dlls/xgameruntime/main.c
++++ b/dlls/xgameruntime/main.c
+@@ -26,6 +26,8 @@
+ 
+ WINE_DEFAULT_DEBUG_CHANNEL(xgameruntime);
+ 
++#include "store-identity-diagnostics.h"
++
+ char *msaAppId = NULL;
+ UINT32 titleId = 0;
+ char *storeId = NULL;
+@@ -238,6 +240,8 @@
+ 
+ HRESULT WINAPI QueryApiImpl( REFCLSID clsid, REFIID iid, void **out )
+ {
++    if (IsEqualGUID(clsid,&CLSID_XUserImpl)) NEXUS_STORE_META(1,E_PENDING,0,iid);
++    else if (IsEqualGUID(clsid,&CLSID_XStoreImpl)) NEXUS_STORE_META(2,E_PENDING,0,iid);
+     TRACE( "clsid %s, iid %s, out %p.\n", debugstr_guid( clsid ), debugstr_guid( iid ), out );
+ 
+     if (IsEqualGUID( clsid, &CLSID_XAccessibilityImpl ))
+diff --git a/dlls/xgameruntime/xuser.c b/dlls/xgameruntime/xuser.c
+--- a/dlls/xgameruntime/xuser.c
++++ b/dlls/xgameruntime/xuser.c
+@@ -1114,6 +1114,7 @@
+ {
+     struct x_user *impl = impl_from_IXUserImpl6( iface );
+ 
++    NEXUS_STORE_META(3,E_PENDING,0,iid);
+     TRACE( "iface %p, iid %s, out %p.\n", iface, debugstr_guid( iid ), out );
+ 
+     if (IsEqualGUID( iid, &IID_IUnknown    ) ||
+@@ -1136,6 +1137,7 @@
+ 
+     FIXME( "%s not implemented, returning E_NOINTERFACE.\n", debugstr_guid( iid ) );
+     *out = NULL;
++    NEXUS_STORE_META(3,E_NOINTERFACE,0,iid);
+     return E_NOINTERFACE;
+ }
+ 
+@@ -2303,18 +2305,21 @@
+ static HRESULT WINAPI x_user_XUserGetMsaTokenSilentlyAsync( IXUserImpl6 *iface, XUserHandle user, XUserGetMsaTokenSilentlyOptions options, const char *scope, XAsyncBlock *async )
+ {
+     FIXME( "iface %p, user %p, options %u, scope %s, async %p stub!\n", iface, user, options, debugstr_a( scope ), async );
++    NEXUS_STORE_META(11,E_NOTIMPL,0,NULL);
+     return E_NOTIMPL;
+ }
+ 
+ static HRESULT WINAPI x_user_XUserGetMsaTokenSilentlyResult( IXUserImpl6 *iface, XAsyncBlock *async, SIZE_T resultTokenSize, char *resultToken, SIZE_T *resultTokenUsed )
+ {
+     FIXME( "iface %p, async %p, resultTokenSize %Iu, resultToken %p, resultTokenUsed %p stub!\n", iface, async, resultTokenSize, resultToken, resultTokenUsed );
++    NEXUS_STORE_META(12,E_NOTIMPL,0,NULL);
+     return E_NOTIMPL;
+ }
+ 
+ static HRESULT WINAPI x_user_XUserGetMsaTokenSilentlyResultSize( IXUserImpl6 *iface, XAsyncBlock *async, SIZE_T *tokenSize )
+ {
+     FIXME( "iface %p, async %p, tokenSize %p stub!\n", iface, async, tokenSize );
++    NEXUS_STORE_META(13,E_NOTIMPL,0,NULL);
+     return E_NOTIMPL;
+ }
+ 
+@@ -2325,6 +2330,7 @@
+     /* The signed-in user acquires real Microsoft Store licenses through
+      * this runtime (XStoreQueryLicenseToken reaches the actual licensing
+      * service), so they are a store user. */
++    NEXUS_STORE_META(10,S_OK,(user ? 1 : 0) | 4,NULL);
+     return TRUE;
+ }
+ 
+diff --git a/dlls/xgameruntime/xstore.c b/dlls/xgameruntime/xstore.c
+--- a/dlls/xgameruntime/xstore.c
++++ b/dlls/xgameruntime/xstore.c
+@@ -44,6 +44,7 @@
+ {
+     struct x_store *impl = impl_from_IXStoreImpl6( iface );
+ 
++    NEXUS_STORE_META(4,E_PENDING,0,iid);
+     TRACE( "iface %p, iid %s, out %p.\n", iface, debugstr_guid( iid ), out );
+ 
+     if (IsEqualGUID( iid, &IID_IUnknown     ) ||
+@@ -60,6 +61,7 @@
+ 
+     FIXME( "%s not implemented, returning E_NOINTERFACE.\n", debugstr_guid( iid ) );
+     *out = NULL;
++    NEXUS_STORE_META(4,E_NOINTERFACE,0,iid);
+     return E_NOINTERFACE;
+ }
+ 
+@@ -81,7 +83,9 @@
+ 
+ static HRESULT WINAPI x_store_XStoreCreateContext( IXStoreImpl6 *iface, const XUserHandle user, XStoreContextHandle *storeContextHandle )
+ {
+-    return entitled_store_create(user, storeContextHandle);
++    HRESULT hr = entitled_store_create(user, storeContextHandle);
++    NEXUS_STORE_META(20,hr,(user ? 1 : 0) | (storeContextHandle ? 2 : 0),NULL);
++    return hr;
+ }
+ 
+ static void WINAPI x_store_XStoreCloseContextHandle( IXStoreImpl6 *iface, XStoreContextHandle storeContextHandle )
+@@ -92,6 +96,7 @@
+ static HRESULT WINAPI x_store_XStoreQueryAssociatedProductsAsync( IXStoreImpl6 *iface, const XStoreContextHandle storeContextHandle, XStoreProductKind productKinds, UINT32 maxItemsToRetrievePerPage, XAsyncBlock *async )
+ {
+     FIXME( "iface %p, storeContextHandle %p, productKinds %#x, maxItemsToRetrievePerPage %u, async %p stub!\n", iface, storeContextHandle, productKinds, maxItemsToRetrievePerPage, async );
++    NEXUS_STORE_META(32,E_NOTIMPL,0,NULL);
+     return E_NOTIMPL;
+ }
+ 
+@@ -104,6 +109,7 @@
+ static HRESULT WINAPI x_store_XStoreQueryProductsAsync( IXStoreImpl6 *iface, const XStoreContextHandle storeContextHandle, XStoreProductKind productKinds, const char **storeIds, SIZE_T storeIdsCount, const char **actionFilters, SIZE_T actionFiltersCount, XAsyncBlock *async )
+ {
+     FIXME( "iface %p, storeContextHandle %p, productKinds %#x, storeIds %p, storeIdsCount %Iu, actionFilters %p, actionFiltersCount %Iu, async %p stub!\n", iface, storeContextHandle, productKinds, storeIds, storeIdsCount, actionFilters, actionFiltersCount, async );
++    NEXUS_STORE_META(33,E_NOTIMPL,0,NULL);
+     return E_NOTIMPL;
+ }
+ 
+@@ -126,6 +132,7 @@
+ static HRESULT WINAPI x_store_XStoreQueryProductForCurrentGameAsync( IXStoreImpl6 *iface, const XStoreContextHandle storeContextHandle, XAsyncBlock *async )
+ {
+     FIXME( "iface %p, storeContextHandle %p, async %p stub!\n", iface, storeContextHandle, async );
++    NEXUS_STORE_META(31,E_NOTIMPL,0,NULL);
+     return E_NOTIMPL;
+ }
+ 
+@@ -323,36 +330,42 @@
+ static HRESULT WINAPI x_store_XStoreGetUserCollectionsIdAsync( IXStoreImpl6 *iface, const XStoreContextHandle storeContextHandle, const char *serviceTicket, const char *publisherUserId, XAsyncBlock *async )
+ {
+     FIXME( "iface %p, storeContextHandle %p, serviceTicket %s, userId %s, async %p stub!\n", iface, storeContextHandle, debugstr_a( serviceTicket ), debugstr_a( publisherUserId ), async );
++    NEXUS_STORE_META(21,E_NOTIMPL,0,NULL);
+     return E_NOTIMPL;
+ }
+ 
+ static HRESULT WINAPI x_store_XStoreGetUserCollectionsIdResultSize( IXStoreImpl6 *iface, XAsyncBlock *async, SIZE_T *size )
+ {
+     FIXME( "iface %p, async %p, size %p stub!\n", iface, async, size );
++    NEXUS_STORE_META(22,E_NOTIMPL,0,NULL);
+     return E_NOTIMPL;
+ }
+ 
+ static HRESULT WINAPI x_store_XStoreGetUserCollectionsIdResult( IXStoreImpl6 *iface, XAsyncBlock *async, SIZE_T size, char *result )
+ {
+     FIXME( "iface %p, async %p, size %Iu, result %p stub!\n", iface, async, size, result );
++    NEXUS_STORE_META(23,E_NOTIMPL,0,NULL);
+     return E_NOTIMPL;
+ }
+ 
+ static HRESULT WINAPI x_store_XStoreGetUserPurchaseIdAsync( IXStoreImpl6 *iface, const XStoreContextHandle storeContextHandle, const char *serviceTicket, const char *publisherUserId, XAsyncBlock *async )
+ {
+     FIXME( "iface %p, storeContextHandle %p, serviceTicket %s, publisherUserId %s, async %p stub!\n", iface, storeContextHandle, debugstr_a( serviceTicket ), debugstr_a( publisherUserId ), async );
++    NEXUS_STORE_META(24,E_NOTIMPL,0,NULL);
+     return E_NOTIMPL;
+ }
+ 
+ static HRESULT WINAPI x_store_XStoreGetUserPurchaseIdResultSize( IXStoreImpl6 *iface, XAsyncBlock *async, SIZE_T *size )
+ {
+     FIXME( "iface %p, async %p, size %p stub!\n", iface, async, size );
++    NEXUS_STORE_META(25,E_NOTIMPL,0,NULL);
+     return E_NOTIMPL;
+ }
+ 
+ static HRESULT WINAPI x_store_XStoreGetUserPurchaseIdResult( IXStoreImpl6 *iface, XAsyncBlock *async, SIZE_T size, char *result )
+ {
+     FIXME( "iface %p, async %p, size %Iu, result %p stub!\n", iface, async, size, result );
++    NEXUS_STORE_META(26,E_NOTIMPL,0,NULL);
+     return E_NOTIMPL;
+ }
+ 
+diff --git a/dlls/xgameruntime/private.h b/dlls/xgameruntime/private.h
+--- a/dlls/xgameruntime/private.h
++++ b/dlls/xgameruntime/private.h
+@@ -113,3 +113,7 @@
+ extern IXUserDeviceImpl *x_user_device_impl;
+ 
+ HRESULT WINAPI QueryApiImpl( const GUID *classId, REFIID interfaceId, void **out );
++
++/* Diagnostic-only metadata. Interface GUIDs are public API IDs, never account IDs. */
++void nexus_store_metadata(unsigned int api,HRESULT hr,unsigned int flags,const GUID *iid,const void *caller);
++#define NEXUS_STORE_META(api,hr,flags,iid) nexus_store_metadata(api,hr,flags,iid,__builtin_return_address(0))
+diff --git a/dlls/xgameruntime/store-identity-diagnostics.h b/dlls/xgameruntime/store-identity-diagnostics.h
+new file mode 100644
+--- /dev/null
++++ b/dlls/xgameruntime/store-identity-diagnostics.h
+@@ -0,0 +1,67 @@
++/* SPDX-License-Identifier: LGPL-2.1-or-later
++ * Opt-in local diagnostic metadata only. No account IDs, handles, strings,
++ * credentials, request bodies or URLs are accepted by this interface. */
++void nexus_store_metadata( unsigned int api, HRESULT hr, unsigned int flags,
++                           const GUID *iid, const void *caller )
++{
++    static SRWLOCK lock = SRWLOCK_INIT;
++    DWORD saved_error = GetLastError(), length, written;
++    char file_name[MAX_PATH], module_name[81] = "unknown", line[384];
++    WCHAR module_path[32768], *base;
++    HMODULE module;
++    HANDLE file;
++    LARGE_INTEGER size, end;
++    BY_HANDLE_FILE_INFORMATION info;
++    OVERLAPPED range = {0};
++    ULONGLONG rva = 0;
++    GUID empty = {0};
++    unsigned int i;
++
++    if (api < 1 || api > 33 || flags > 15) goto done;
++    length = GetEnvironmentVariableA( "NEXUS_STORE_METADATA_LOG", file_name, sizeof(file_name) );
++    if (!length || length >= sizeof(file_name)) goto done;
++    if (caller && GetModuleHandleExW( GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
++            GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, (const WCHAR *)caller, &module ))
++    {
++        rva = (ULONG_PTR)caller - (ULONG_PTR)module;
++        length = GetModuleFileNameW( module, module_path, ARRAY_SIZE(module_path) );
++        if (length && length < ARRAY_SIZE(module_path))
++        {
++            base = wcsrchr( module_path, '\\' ); base = base ? base + 1 : module_path;
++            for (i = 0; base[i] && i < sizeof(module_name) - 1; i++)
++            {
++                if (!((base[i] >= 'A' && base[i] <= 'Z') || (base[i] >= 'a' && base[i] <= 'z') ||
++                      (base[i] >= '0' && base[i] <= '9') || base[i] == '.' || base[i] == '_' || base[i] == '-')) break;
++            }
++            if (!base[i]) { for (i = 0; base[i]; i++) module_name[i] = base[i]; module_name[i] = 0; }
++        }
++    }
++    if (!iid) iid = &empty;
++    length = snprintf( line, sizeof(line),
++        "STORE_META api=%u hr=%08lx flags=%u iid=%08lx-%04x-%04x-%02x%02x-%02x%02x%02x%02x%02x%02x module=%s rva=%llx tick=%lu thread=%lu\n",
++        api, (unsigned long)(UINT32)hr, flags, (unsigned long)iid->Data1, iid->Data2, iid->Data3,
++        iid->Data4[0], iid->Data4[1], iid->Data4[2], iid->Data4[3], iid->Data4[4], iid->Data4[5], iid->Data4[6], iid->Data4[7],
++        module_name, (unsigned long long)rva, (unsigned long)GetTickCount(), (unsigned long)GetCurrentThreadId() );
++    if (length >= sizeof(line)) goto done;
++    if (!TryAcquireSRWLockExclusive( &lock )) goto done;
++    file = CreateFileA( file_name, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE,
++                        NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OPEN_REPARSE_POINT, NULL );
++    if (file != INVALID_HANDLE_VALUE)
++    {
++        if (GetFileType( file ) == FILE_TYPE_DISK && GetFileInformationByHandle( file, &info ) &&
++            !(info.dwFileAttributes & (FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_REPARSE_POINT)) &&
++            LockFileEx( file, LOCKFILE_EXCLUSIVE_LOCK | LOCKFILE_FAIL_IMMEDIATELY, 0, MAXDWORD, MAXDWORD, &range ))
++        {
++            if (GetFileSizeEx( file, &size ) && size.QuadPart >= 0 && size.QuadPart + length <= 65536)
++            {
++                end.QuadPart = 0;
++                if (SetFilePointerEx( file, end, NULL, FILE_END )) WriteFile( file, line, length, &written, NULL );
++            }
++            UnlockFileEx( file, 0, MAXDWORD, MAXDWORD, &range );
++        }
++        CloseHandle( file );
++    }
++    ReleaseSRWLockExclusive( &lock );
++done:
++    SetLastError( saved_error );
++}

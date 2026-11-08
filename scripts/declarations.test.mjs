@@ -24,11 +24,16 @@ test('strict C patch only relocates declarations, preserving statement order and
     }
 });
 
-test('strict C source patch is last and locked for all three changed source files', () => {
+test('strict C repair stays locked and later patches do not touch its three source files', () => {
     const lock = JSON.parse(fs.readFileSync(new URL('./runtime-patches.lock.json', import.meta.url)));
-    assert.equal(lock.patches.at(-1).file, 'assets/wine-sdk-c-declarations.patch');
+    const index = lock.patches.findIndex(row => row.file === 'assets/wine-sdk-c-declarations.patch');
+    assert.ok(index >= 0);
     for (const name of ['xgamesave.c', 'xgamesavefiles.h', 'xthreading.c']) {
         assert.match(lock.expectedXgameruntimeSources['dlls/xgameruntime/' + name], /^[a-f0-9]{64}$/);
         assert.ok(patch.includes('diff --git a/dlls/xgameruntime/' + name));
+        for (const later of lock.patches.slice(index + 1)) {
+            const text = fs.readFileSync(new URL('../' + later.file, import.meta.url), 'utf8');
+            assert.ok(!text.includes('diff --git a/dlls/xgameruntime/' + name), later.file);
+        }
     }
 });
